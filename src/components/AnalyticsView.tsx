@@ -17,7 +17,6 @@ import { formatDuration } from '../utils/formatters';
 export const AnalyticsView: React.FC = () => {
   const { feeders, language, now } = useSubstation();
 
-  // Prepare chart data
   const chartData = feeders.map(f => {
     const elapsed = Math.max(0, Math.floor((now.getTime() - new Date(f.lastStatusChange).getTime()) / 1000));
     const upSec = f.status === 'ON' ? f.totalUptimeSecondsToday + elapsed : f.totalUptimeSecondsToday;
@@ -26,7 +25,7 @@ export const AnalyticsView: React.FC = () => {
     const uptimePercent = totalSec > 0 ? +((upSec / totalSec) * 100).toFixed(1) : 100;
 
     return {
-      name: language === 'hi' ? f.hindiName.replace(' ????', '') : f.name.replace(' Feeder', ''),
+      name: language === 'hi' ? f.hindiName.replace(' फीडर', '') : f.name.replace(' Feeder', ''),
       fullName: language === 'hi' ? f.hindiName : f.name,
       uptimeHours: +(upSec / 3600).toFixed(2),
       downtimeHours: +(downSec / 3600).toFixed(2),
@@ -42,7 +41,6 @@ export const AnalyticsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
           <div>
@@ -50,26 +48,24 @@ export const AnalyticsView: React.FC = () => {
               <BarChart3 className="w-5 h-5 text-amber-400" />
               <span>
                 {language === 'hi'
-                  ? '???? ?????? ? ???????? ???????? (Officer Analytics)'
+                  ? 'फीडर रनटाइम व प्रदर्शन विश्लेषण (Officer Analytics)'
                   : 'Feeder Runtime & Performance Analytics'}
               </span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               {language === 'hi'
-                ? '??? 8 ?????? ?? ?? ?? ??? ???? ?? ??? ???? ?? ????? ?? ????????? ?????'
+                ? 'सभी 8 फीडरों के आज के कुल चलने और बंद रहने के घंटों का तुलनात्मक विवरण'
                 : 'Comparative report of uptime hours, downtime hours and load across all 8 feeders'}
             </p>
           </div>
         </div>
 
-        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           
-          {/* Uptime vs Downtime Chart */}
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
             <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center space-x-2">
               <Clock className="w-4 h-4 text-emerald-400" />
-              <span>{language === 'hi' ? '?? ???? vs ??? ???? ?? ???? (Hours)' : 'Today Uptime vs Downtime (Hours)'}</span>
+              <span>{language === 'hi' ? 'आज चलने vs बंद रहने के घंटे (Hours)' : 'Today Uptime vs Downtime (Hours)'}</span>
             </h3>
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -89,18 +85,17 @@ export const AnalyticsView: React.FC = () => {
                     itemStyle={{ color: '#e2e8f0' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  <Bar dataKey="uptimeHours" name={language === 'hi' ? '???? ??? (Uptime Hrs)' : 'Uptime (Hrs)'} fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="downtimeHours" name={language === 'hi' ? '??? ??? (Downtime Hrs)' : 'Downtime (Hrs)'} fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="uptimeHours" name={language === 'hi' ? 'चालू रहा (Uptime Hrs)' : 'Uptime (Hrs)'} fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="downtimeHours" name={language === 'hi' ? 'बंद रहा (Downtime Hrs)' : 'Downtime (Hrs)'} fill="#ef4444" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Current Active Load Chart */}
           <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
             <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center space-x-2">
               <TrendingUp className="w-4 h-4 text-amber-400" />
-              <span>{language === 'hi' ? '??????? ???? ??? ????? (Active Load in MW)' : 'Feeder Power Load Distribution (MW)'}</span>
+              <span>{language === 'hi' ? 'वर्तमान फीडर लोड वितरण (Active Load in MW)' : 'Feeder Power Load Distribution (MW)'}</span>
             </h3>
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -118,7 +113,7 @@ export const AnalyticsView: React.FC = () => {
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
                   />
-                  <Bar dataKey="loadMw" name={language === 'hi' ? '??? (MW)' : 'Power (MW)'} fill="#f59e0b" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="loadMw" name={language === 'hi' ? 'लोड (MW)' : 'Power (MW)'} fill="#f59e0b" radius={[4, 4, 0, 0]}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.status === 'ON' ? '#f59e0b' : '#475569'} />
                     ))}
@@ -130,24 +125,23 @@ export const AnalyticsView: React.FC = () => {
 
         </div>
 
-        {/* Detailed Performance & Reliability Table */}
         <div className="mt-8">
           <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center space-x-2">
             <ShieldCheck className="w-4 h-4 text-indigo-400" />
-            <span>{language === 'hi' ? '????? ???? ???????? ? ??????????? ???????' : 'Overall Feeder Availability & Reliability Index'}</span>
+            <span>{language === 'hi' ? 'समग्र फीडर उपलब्धता व विश्वसनीयता सूचकांक' : 'Overall Feeder Availability & Reliability Index'}</span>
           </h3>
 
           <div className="overflow-x-auto rounded-xl border border-slate-800">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950/80 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">{language === 'hi' ? '???? ?? ???' : 'Feeder Name'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '??????? ??????' : 'Current Status'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '??? ???? ??? (Today)' : 'Total Uptime'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '??? ??? ??? (Today)' : 'Total Downtime'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '???????? %' : 'Availability %'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '???????? ??????' : 'Trip Count'}</th>
-                  <th className="py-3 px-4">{language === 'hi' ? '??????' : 'Status Score'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'फीडर का नाम' : 'Feeder Name'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'वर्तमान स्थिति' : 'Current Status'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'कुल चालू समय (Today)' : 'Total Uptime'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'कुल बंद समय (Today)' : 'Total Downtime'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'उपलब्धता %' : 'Availability %'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'ट्रिपिंग संख्या' : 'Trip Count'}</th>
+                  <th className="py-3 px-4">{language === 'hi' ? 'रेटिंग' : 'Status Score'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">

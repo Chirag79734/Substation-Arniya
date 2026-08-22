@@ -26,12 +26,12 @@ interface SubstationContextType {
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
 
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v1';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v1';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v1';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v1';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v1';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v1';
+const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v2';
+const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v2';
+const STORAGE_KEY_LOGS = 'substation_arniya_logs_v2';
+const STORAGE_KEY_ROLE = 'substation_arniya_role_v2';
+const STORAGE_KEY_LANG = 'substation_arniya_lang_v2';
+const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v2';
 
 export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [now, setNow] = useState<Date>(new Date());
@@ -63,12 +63,11 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const [operatorName, setOperatorNameState] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_OPERATOR);
-    return saved || 'Ramesh Kumar (SSO)';
+    return saved || 'रमेश कुमार (SSO)';
   });
 
   const [activeTab, setActiveTab] = useState<string>('overview');
 
-  // Live timer tick every second
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(new Date());
@@ -76,7 +75,6 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => clearInterval(interval);
   }, []);
 
-  // Save to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FEEDERS, JSON.stringify(feeders));
   }, [feeders]);
@@ -116,7 +114,6 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const nextStatus: FeederStatus = isCurrentlyOn ? 'OFF' : 'ON';
         const previousStatus = feeder.status;
         
-        // Calculate duration spent in the current state
         const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
         
         let newUptime = feeder.totalUptimeSecondsToday;
@@ -128,12 +125,10 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           newDowntime += elapsedSec;
         }
 
-        // Simulated electrical values
         const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
         const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
         const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
 
-        // Create log entry
         const incomerObj = incomers.find(i => i.id === feeder.incomerId);
         const newLog: FeederLog = {
           id: `log-${Date.now()}`,
@@ -147,7 +142,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           durationSecondsInPreviousState: elapsedSec,
           timestamp: currentTime,
           operatorName: op,
-          reason: reason || (nextStatus === 'ON' ? 'Feeder Charged / Turned ON' : 'Feeder De-energized / Switched OFF')
+          reason: reason || (nextStatus === 'ON' ? 'फीडर चार्ज / चालू किया गया' : 'फीडर बंद / शटडाउन')
         };
 
         setLogs(prev => [newLog, ...prev]);
@@ -161,7 +156,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           lastStatusChange: currentTime,
           totalUptimeSecondsToday: newUptime,
           totalDowntimeSecondsToday: newDowntime,
-          remarks: reason || (nextStatus === 'ON' ? 'Normal Running' : 'Manual Switch Off')
+          remarks: reason || (nextStatus === 'ON' ? 'सामान्य चालू' : 'मैन्युअल बंद')
         };
       });
     });
@@ -197,7 +192,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           durationSecondsInPreviousState: elapsedSec,
           timestamp: currentTime,
           operatorName: operatorName,
-          reason: reason || 'Overcurrent / Earth Fault Relay Trip'
+          reason: reason || 'ओवरकरंट / अर्थ फॉल्ट रिले ट्रिप'
         };
 
         setLogs(prev => [newLog, ...prev]);
@@ -212,7 +207,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           totalUptimeSecondsToday: newUptime,
           totalDowntimeSecondsToday: newDowntime,
           tripCountToday: feeder.tripCountToday + 1,
-          remarks: reason || 'Tripped by Protection Relay'
+          remarks: reason || 'प्रोटेक्शन रिले ट्रिप'
         };
       });
     });
@@ -252,13 +247,11 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.removeItem(STORAGE_KEY_LOGS);
   };
 
-  // Compute live substation statistics
   const activeFeeders = feeders.filter(f => f.status === 'ON').length;
   const inactiveFeeders = feeders.length - activeFeeders;
   const totalLoadMw = +(feeders.reduce((sum, f) => sum + (f.status === 'ON' ? f.powerMw : 0), 0)).toFixed(2);
   const totalTrippingsToday = feeders.reduce((sum, f) => sum + f.tripCountToday, 0);
 
-  // Overall uptime percentage today
   let totalUpSeconds = 0;
   let totalDownSeconds = 0;
   feeders.forEach(f => {

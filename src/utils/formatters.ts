@@ -9,12 +9,12 @@ export function formatDuration(seconds: number, language: 'hi' | 'en' = 'en'): s
 
   if (language === 'hi') {
     if (hrs > 0) {
-      return `${hrs} ???? ${mins} ???? ${secs} ?????`;
+      return `${hrs} घंटा ${mins} मिनट ${secs} सेकंड`;
     }
     if (mins > 0) {
-      return `${mins} ???? ${secs} ?????`;
+      return `${mins} मिनट ${secs} सेकंड`;
     }
-    return `${secs} ?????`;
+    return `${secs} सेकंड`;
   }
 
   if (hrs > 0) {

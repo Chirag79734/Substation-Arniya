@@ -25,7 +25,6 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
 
   return (
     <div className="space-y-4 mb-8">
-      {/* Incomer Master Banner */}
       <div className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${
         isIncOn 
           ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/20 border-amber-500/30'
@@ -33,7 +32,6 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
       }`}>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           
-          {/* Incomer Info */}
           <div className="flex items-center space-x-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-md ${
               isIncOn 
@@ -57,15 +55,13 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
               </div>
               <p className="text-xs text-slate-400">
                 {language === 'hi' 
-                  ? `???????????? ??????: ${incomer.transformerMva} MVA � ??? ????: ${incomerFeeders.length} (${activeCount} ????)` 
-                  : `Transformer Capacity: ${incomer.transformerMva} MVA � Total Feeders: ${incomerFeeders.length} (${activeCount} Active)`}
+                  ? `ट्रांसफार्मर क्षमता: ${incomer.transformerMva} MVA • कुल फीडर: ${incomerFeeders.length} (${activeCount} चालू)` 
+                  : `Transformer Capacity: ${incomer.transformerMva} MVA • Total Feeders: ${incomerFeeders.length} (${activeCount} Active)`}
               </p>
             </div>
           </div>
 
-          {/* Telemetry Metrics for Transformer */}
           <div className="flex flex-wrap items-center gap-3">
-            {/* Bus Voltage */}
             <div className="bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 block uppercase">33kV Voltage</span>
               <span className="text-sm font-bold text-amber-400 font-mono-scada">
@@ -73,7 +69,6 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
               </span>
             </div>
 
-            {/* Total Incomer Load */}
             <div className="bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 block uppercase">Total Incomer Load</span>
               <span className="text-sm font-bold text-white font-mono-scada">
@@ -81,22 +76,20 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
               </span>
             </div>
 
-            {/* Transformer Oil Temp */}
             <div className="bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 flex items-center space-x-1.5">
               <Thermometer className="w-4 h-4 text-rose-400" />
               <div className="text-left">
                 <span className="text-[10px] text-slate-400 block uppercase">Oil / Winding Temp</span>
                 <span className="text-xs font-bold text-slate-200 font-mono-scada">
-                  {incomer.oilTempC}�C / {incomer.windingTempC}�C
+                  {incomer.oilTempC}°C / {incomer.windingTempC}°C
                 </span>
               </div>
             </div>
 
-            {/* Incomer Master Breaker Toggle (Operator Mode) */}
             {role === 'operator' && (
               <button
                 onClick={() => {
-                  if (window.confirm(language === 'hi' ? `???? ?? ${incomer.hindiName} ??? 33kV ?????? ?? ????? ????? ????` : `Toggle 33kV Master Breaker for ${incomer.name}?`)) {
+                  if (window.confirm(language === 'hi' ? `क्या आप ${incomer.hindiName} मेन 33kV ब्रेकर को बदलना चाहते हैं?` : `Toggle 33kV Master Breaker for ${incomer.name}?`)) {
                     toggleIncomer(incomer.id);
                   }
                 }}
@@ -116,7 +109,6 @@ export const IncomerSection: React.FC<IncomerSectionProps> = ({ incomerId }) => 
         </div>
       </div>
 
-      {/* Grid of Feeders under this Incomer */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {incomerFeeders.map(feeder => (
           <FeederCard key={feeder.id} feeder={feeder} />

@@ -78,7 +78,7 @@ const DashboardContent: React.FC = () => {
               <Radio className="w-3.5 h-3.5 text-emerald-400" />
               <span>RTU Telemetry Online</span>
             </span>
-            <span className="text-slate-600">•</span>
+            <span className="text-slate-600">ï¿½</span>
             <span>Version 1.0.0</span>
           </div>
         </div>

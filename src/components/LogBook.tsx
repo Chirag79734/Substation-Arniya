@@ -43,32 +43,30 @@ export const LogBook: React.FC = () => {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-6">
       
-      {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h2 className="text-lg font-bold text-white font-tech flex items-center space-x-2">
             <FileText className="w-5 h-5 text-amber-400" />
             <span>
               {language === 'hi'
-                ? '???????? ?????? - ????? ???? ?????? ? ????????'
+                ? 'सबस्टेशन अरनिया - दैनिक फीडर लॉगबुक व घटनाक्रम'
                 : 'Substation Arniya - Daily Feeder Event Logbook'}
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             {language === 'hi'
-              ? '???? ???? / ??? ???? ?? ???? ???, ????, ?????? ?? ??? ?? ????'
+              ? 'फीडर चालू / बंद होने का सटीक समय, अवधि, ऑपरेटर का नाम और कारण'
               : 'Exact timestamps, durations, operator names, and reasons for every feeder event'}
           </p>
         </div>
 
-        {/* Action Buttons: Export CSV & Print */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleExport}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
           >
             <Download className="w-4 h-4" />
-            <span>{language === 'hi' ? 'Excel / CSV ???????' : 'Export CSV'}</span>
+            <span>{language === 'hi' ? 'Excel / CSV डाउनलोड' : 'Export CSV'}</span>
           </button>
 
           <button
@@ -76,13 +74,13 @@ export const LogBook: React.FC = () => {
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700"
           >
             <Printer className="w-4 h-4" />
-            <span>{language === 'hi' ? '?????? ???????' : 'Print Log'}</span>
+            <span>{language === 'hi' ? 'प्रिंट रिपोर्ट' : 'Print Log'}</span>
           </button>
 
           {logs.length > 0 && (
             <button
               onClick={() => {
-                if (window.confirm(language === 'hi' ? '???? ?? ??? ????? ?? ????? ????? ????' : 'Clear all event logs?')) {
+                if (window.confirm(language === 'hi' ? 'क्या आप सभी लॉग्स को हटाना चाहते हैं?' : 'Clear all event logs?')) {
                   clearLogs();
                 }
               }}
@@ -95,28 +93,25 @@ export const LogBook: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Search */}
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder={language === 'hi' ? '????, ?????? ?? ???? ?????...' : 'Search feeder, operator, reason...'}
+            placeholder={language === 'hi' ? 'फीडर, ऑपरेटर या कारण खोजें...' : 'Search feeder, operator, reason...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
           />
         </div>
 
-        {/* Feeder Filter */}
         <div>
           <select
             value={selectedFeeder}
             onChange={(e) => setSelectedFeeder(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
           >
-            <option value="ALL">{language === 'hi' ? '??? ???? (All Feeders)' : 'All Feeders'}</option>
+            <option value="ALL">{language === 'hi' ? 'सभी फीडर (All Feeders)' : 'All Feeders'}</option>
             {feeders.map(f => (
               <option key={f.id} value={f.id}>
                 {language === 'hi' ? f.hindiName : f.name}
@@ -125,40 +120,38 @@ export const LogBook: React.FC = () => {
           </select>
         </div>
 
-        {/* Status Filter */}
         <div>
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
           >
-            <option value="ALL">{language === 'hi' ? '??? ????????? (All Statuses)' : 'All Statuses'}</option>
-            <option value="ON">{language === 'hi' ? '???? (ON / Energized)' : 'ON / Energized'}</option>
-            <option value="OFF">{language === 'hi' ? '??? (OFF / Shutdown)' : 'OFF / Shutdown'}</option>
-            <option value="TRIPPED">{language === 'hi' ? '??????? (TRIPPED / Fault)' : 'TRIPPED / Fault'}</option>
+            <option value="ALL">{language === 'hi' ? 'सभी स्थितियाँ (All Statuses)' : 'All Statuses'}</option>
+            <option value="ON">{language === 'hi' ? 'चालू (ON / Energized)' : 'ON / Energized'}</option>
+            <option value="OFF">{language === 'hi' ? 'बंद (OFF / Shutdown)' : 'OFF / Shutdown'}</option>
+            <option value="TRIPPED">{language === 'hi' ? 'ट्रिप्ड (TRIPPED / Fault)' : 'TRIPPED / Fault'}</option>
           </select>
         </div>
       </div>
 
-      {/* Logs Table */}
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-950/80 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
             <tr>
-              <th className="py-3 px-4">{language === 'hi' ? '??? (Timestamp)' : 'Timestamp'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '???? ?? ???' : 'Feeder Name'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '?????' : 'Incomer'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '???????? / ??????' : 'Action / Status'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '????? ?????? ??? ????' : 'Prev Duration'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '?????? (SSO)' : 'Operator'}</th>
-              <th className="py-3 px-4">{language === 'hi' ? '???? / ???????' : 'Reason / Note'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'समय (Timestamp)' : 'Timestamp'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'फीडर का नाम' : 'Feeder Name'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'इनकमर' : 'Incomer'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'कार्रवाई / स्थिति' : 'Action / Status'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'पिछली स्थिति में अवधि' : 'Prev Duration'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'ऑपरेटर (SSO)' : 'Operator'}</th>
+              <th className="py-3 px-4">{language === 'hi' ? 'कारण / रिमार्क' : 'Reason / Note'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
             {filteredLogs.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-slate-500">
-                  {language === 'hi' ? '??? ??? ??????? ???? ????' : 'No log records found'}
+                  {language === 'hi' ? 'कोई लॉग रिकॉर्ड नहीं मिला' : 'No log records found'}
                 </td>
               </tr>
             ) : (
@@ -194,10 +187,10 @@ export const LogBook: React.FC = () => {
                         )}
                         <span>
                           {isNewOn 
-                            ? (language === 'hi' ? '???? (ON)' : 'CHARGED (ON)') 
+                            ? (language === 'hi' ? 'चालू (ON)' : 'CHARGED (ON)') 
                             : isTripped
-                            ? (language === 'hi' ? '??????? (TRIPPED)' : 'TRIPPED')
-                            : (language === 'hi' ? '??? (OFF)' : 'OPEN (OFF)')}
+                            ? (language === 'hi' ? 'ट्रिप्ड (TRIPPED)' : 'TRIPPED')
+                            : (language === 'hi' ? 'बंद (OFF)' : 'OPEN (OFF)')}
                         </span>
                       </span>
                     </td>

@@ -11,12 +11,12 @@ interface ActionModalProps {
 }
 
 const COMMON_REASONS_HI = [
-  '?????? ????????? / ??? ?????',
-  '????? ?? ???? (PTW) / ???? ?? ???',
-  '?????? / ????? ????? / ???????? ?????',
-  '?????? ?? ????? (Tree Trimming)',
-  '?????? ??????? ????',
-  '??????? ?? / ????? ???? ???'
+  'नियमित रोस्टरिंग / लोड कटौती',
+  'परमिट टू वर्क (PTW) / लाइन पर काम',
+  'मरम्मत / जम्पर बदलना / इंसुलेटर सुधार',
+  'पेड़ों की छंटाई (Tree Trimming)',
+  'ओवरलोड सुरक्षा उपाय',
+  'सामान्य ऑन / चार्ज किया गया'
 ];
 
 const COMMON_REASONS_EN = [
@@ -37,8 +37,8 @@ export const ActionModal: React.FC<ActionModalProps> = ({
 }) => {
   const isTurningOff = feeder.status === 'ON';
   const defaultReason = isTurningOff
-    ? (language === 'hi' ? '?????? ?????????' : 'Scheduled Rostering')
-    : (language === 'hi' ? '??????? ?????? ????' : 'Normal Supply Restored');
+    ? (language === 'hi' ? 'नियमित रोस्टरिंग' : 'Scheduled Rostering')
+    : (language === 'hi' ? 'सामान्य सप्लाई चालू' : 'Normal Supply Restored');
 
   const [selectedReason, setSelectedReason] = useState(defaultReason);
   const [customRemark, setCustomRemark] = useState('');
@@ -54,10 +54,9 @@ export const ActionModal: React.FC<ActionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
       <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative">
         
-        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
@@ -65,7 +64,6 @@ export const ActionModal: React.FC<ActionModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Title */}
         <div className="flex items-center space-x-3 mb-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
             isTurningOff ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
@@ -75,11 +73,11 @@ export const ActionModal: React.FC<ActionModalProps> = ({
           <div>
             <h3 className="text-lg font-bold text-white">
               {language === 'hi'
-                ? `${feeder.hindiName} ?? ${isTurningOff ? '??? (OFF)' : '???? (ON)'} ????`
+                ? `${feeder.hindiName} को ${isTurningOff ? 'बंद (OFF)' : 'चालू (ON)'} करें`
                 : `Switch ${isTurningOff ? 'OFF' : 'ON'} ${feeder.name}`}
             </h3>
             <p className="text-xs text-slate-400">
-              {language === 'hi' ? '???? ?????? ???????? ?? ?????? ????' : 'Confirm feeder breaker switching operation'}
+              {language === 'hi' ? 'फीडर ब्रेकर स्विचिंग की पुष्टि करें' : 'Confirm feeder breaker switching operation'}
             </p>
           </div>
         </div>
@@ -87,7 +85,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              {language === 'hi' ? '???? / ???? ????? (Quick Reasons):' : 'Select Reason / Category:'}
+              {language === 'hi' ? 'कारण चुनें (Quick Reasons):' : 'Select Reason / Category:'}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {quickReasons.map((r) => (
@@ -109,13 +107,13 @@ export const ActionModal: React.FC<ActionModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-              {language === 'hi' ? '???????? ??????? / ??????? (????????):' : 'Additional Remark / Note (Optional):'}
+              {language === 'hi' ? 'अतिरिक्त टिप्पणी / रिमार्क (वैकल्पिक):' : 'Additional Remark / Note (Optional):'}
             </label>
             <input
               type="text"
               value={customRemark}
               onChange={(e) => setCustomRemark(e.target.value)}
-              placeholder={language === 'hi' ? '????: ??? ???? ?? ?????????????, ??? ?????? 14' : 'e.g. As per JE instructions, pole #14'}
+              placeholder={language === 'hi' ? 'जैसे: जेई साहब के निर्देशानुसार' : 'e.g. As per JE instructions'}
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
             />
           </div>
@@ -124,19 +122,18 @@ export const ActionModal: React.FC<ActionModalProps> = ({
             <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
             <span>
               {language === 'hi'
-                ? '?? ???????? ????? ????? ??? ?? ???? ???? ?????? ??? ???? ?? ????? ?? ?????????? ?? ???? ???????'
+                ? 'यह स्विचिंग इवेंट तुरंत समय और अवधि सहित लॉगबुक में दर्ज हो जाएगा और अधिकारियों को लाइव दिखेगा।'
                 : 'This operation will immediately be recorded in the live logbook with exact timestamp and duration.'}
             </span>
           </div>
 
-          {/* Action buttons */}
           <div className="flex items-center justify-end space-x-3 pt-2">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
             >
-              {language === 'hi' ? '???? ????' : 'Cancel'}
+              {language === 'hi' ? 'रद्द करें' : 'Cancel'}
             </button>
             
             <button
@@ -150,8 +147,8 @@ export const ActionModal: React.FC<ActionModalProps> = ({
               <Check className="w-4 h-4" />
               <span>
                 {isTurningOff
-                  ? (language === 'hi' ? '?????? ???? - ???? ??? ????' : 'Confirm - Switch OFF')
-                  : (language === 'hi' ? '?????? ???? - ???? ???? ????' : 'Confirm - Switch ON')}
+                  ? (language === 'hi' ? 'पुष्टि करें - फीडर बंद करें' : 'Confirm - Switch OFF')
+                  : (language === 'hi' ? 'पुष्टि करें - फीडर चालू करें' : 'Confirm - Switch ON')}
               </span>
             </button>
           </div>
