@@ -1,17 +1,11 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  Firestore, 
-  doc, 
-  setDoc
-} from 'firebase/firestore';
 import { getDatabase, Database, ref, set } from 'firebase/database';
 import { Feeder, Incomer, FeederLog } from '../types/substation';
 
 export interface FirebaseConfigType {
   apiKey: string;
   authDomain: string;
-  databaseURL?: string;
+  databaseURL: string;
   projectId: string;
   storageBucket: string;
   messagingSenderId: string;
@@ -30,7 +24,7 @@ export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
   measurementId: "G-RHE89SGR5R"
 };
 
-const STORAGE_KEY_FIREBASE_CONFIG = 'substation_arniya_fb_config_v3';
+const STORAGE_KEY_FIREBASE_CONFIG = 'substation_arniya_fb_config_v4';
 
 export function getSavedFirebaseConfig(): FirebaseConfigType {
   try {
@@ -51,13 +45,12 @@ export function clearFirebaseConfig() {
 }
 
 let app: FirebaseApp | null = null;
-let firestoreDb: Firestore | null = null;
 let realtimeDb: Database | null = null;
 
 export function initFirebase(customConfig?: FirebaseConfigType) {
   const config = customConfig || getSavedFirebaseConfig();
   if (!config || !config.apiKey) {
-    return { app: null, firestoreDb: null, realtimeDb: null };
+    return { app: null, realtimeDb: null };
   }
 
   try {
@@ -67,22 +60,13 @@ export function initFirebase(customConfig?: FirebaseConfigType) {
       app = getApps()[0];
     }
 
-    try {
-      firestoreDb = getFirestore(app);
-    } catch (e) {
-      console.warn('Firestore init warning:', e);
-    }
+    const dbUrl = config.databaseURL || "https://substation-arniya-default-rtdb.firebaseio.com";
+    realtimeDb = getDatabase(app, dbUrl);
 
-    try {
-      realtimeDb = getDatabase(app);
-    } catch (e) {
-      console.warn('Realtime DB init warning:', e);
-    }
-
-    return { app, firestoreDb, realtimeDb };
+    return { app, realtimeDb };
   } catch (err) {
     console.error('Firebase initialization error:', err);
-    return { app: null, firestoreDb: null, realtimeDb: null };
+    return { app: null, realtimeDb: null };
   }
 }
 
@@ -95,23 +79,13 @@ export interface LiveStatePayload {
 }
 
 export async function syncStateToCloud(payload: LiveStatePayload) {
-  const { firestoreDb, realtimeDb } = initFirebase();
-
-  if (firestoreDb) {
-    try {
-      const stateDocRef = doc(firestoreDb, 'substation_arniya', 'live_state');
-      await setDoc(stateDocRef, payload, { merge: true });
-    } catch (err) {
-      console.warn('Firestore setDoc notice:', err);
-    }
-  }
-
-  if (realtimeDb) {
-    try {
+  try {
+    const { realtimeDb } = initFirebase();
+    if (realtimeDb) {
       const rtdbRef = ref(realtimeDb, 'substation_arniya/live_state');
       await set(rtdbRef, payload);
-    } catch (err) {
-      console.warn('RTDB set notice:', err);
     }
+  } catch (err) {
+    console.error('Firebase Cloud RTDB write error:', err);
   }
 }
