@@ -195,15 +195,15 @@ export const FeederCard: React.FC<FeederCardProps> = ({ feeder }) => {
             <div className="flex items-center space-x-2">
               <span className="flex items-center space-x-1 text-rose-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                <span>R: {isRunning ? Math.round(feeder.currentAmp * 1.02) : 0}A</span>
+                <span>R: {feeder.rAmp !== undefined ? feeder.rAmp : (isRunning ? Math.round(feeder.currentAmp * 1.02) : 0)}A</span>
               </span>
               <span className="flex items-center space-x-1 text-amber-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                <span>Y: {isRunning ? Math.round(feeder.currentAmp * 0.98) : 0}A</span>
+                <span>Y: {feeder.yAmp !== undefined ? feeder.yAmp : (isRunning ? Math.round(feeder.currentAmp * 0.98) : 0)}A</span>
               </span>
               <span className="flex items-center space-x-1 text-sky-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block" />
-                <span>B: {isRunning ? feeder.currentAmp : 0}A</span>
+                <span>B: {feeder.bAmp !== undefined ? feeder.bAmp : (isRunning ? feeder.currentAmp : 0)}A</span>
               </span>
             </div>
           </div>

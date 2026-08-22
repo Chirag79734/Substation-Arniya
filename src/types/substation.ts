@@ -19,6 +19,9 @@ export interface Feeder {
   tripCountToday: number;
   remarks?: string;
   category: 'Rural' | 'Agriculture/PTW' | 'Town/Urban' | 'Industrial';
+  rAmp?: number;
+  yAmp?: number;
+  bAmp?: number;
 }
 
 export interface Incomer {

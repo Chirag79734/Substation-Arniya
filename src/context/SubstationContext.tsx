@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationStats, FeederStatus, HourlySubstationLog } from '../types/substation';
 import { INITIAL_INCOMERS, INITIAL_FEEDERS, INITIAL_LOGS } from '../data/initialData';
 import { 
@@ -14,6 +14,7 @@ interface SubstationContextType {
   feeders: Feeder[];
   logs: FeederLog[];
   hourlyLogs: Record<string, HourlySubstationLog>;
+  activeHourlyLogTimeLabel: string;
   role: UserRole;
   language: Language;
   operatorName: string;
@@ -66,7 +67,10 @@ function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
         totalUptimeSecondsToday: typeof existing.totalUptimeSecondsToday === 'number' ? existing.totalUptimeSecondsToday : initF.totalUptimeSecondsToday,
         totalDowntimeSecondsToday: typeof existing.totalDowntimeSecondsToday === 'number' ? existing.totalDowntimeSecondsToday : initF.totalDowntimeSecondsToday,
         tripCountToday: typeof existing.tripCountToday === 'number' ? existing.tripCountToday : initF.tripCountToday,
-        remarks: existing.remarks || initF.remarks
+        remarks: existing.remarks || initF.remarks,
+        rAmp: typeof existing.rAmp === 'number' ? existing.rAmp : undefined,
+        yAmp: typeof existing.yAmp === 'number' ? existing.yAmp : undefined,
+        bAmp: typeof existing.bAmp === 'number' ? existing.bAmp : undefined
       };
     }
     return initF;
@@ -170,18 +174,125 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, []);
 
+  // Compute Current Hour Log
+  const todayDateStr = now.toISOString().split('T')[0];
+  const currentHourNum = now.getHours() === 0 ? 24 : now.getHours();
+
+  const { activeHourlyLog, activeHourlyLogTimeLabel } = useMemo(() => {
+    const currentKey = `hourly-${todayDateStr}-${currentHourNum}`;
+    if (hourlyLogs[currentKey] && hourlyLogs[currentKey].readings) {
+      const hObj = hourlyLogs[currentKey];
+      return {
+        activeHourlyLog: hObj,
+        activeHourlyLogTimeLabel: `${currentHourNum.toString().padStart(2, '0')}:00 बजे का लोड (चालू घंटा)`
+      };
+    }
+
+    // Check recent hours of today
+    for (let h = currentHourNum - 1; h >= 1; h--) {
+      const key = `hourly-${todayDateStr}-${h}`;
+      if (hourlyLogs[key] && hourlyLogs[key].readings) {
+        return {
+          activeHourlyLog: hourlyLogs[key],
+          activeHourlyLogTimeLabel: `${h.toString().padStart(2, '0')}:00 बजे का लोड`
+        };
+      }
+    }
+
+    return {
+      activeHourlyLog: null,
+      activeHourlyLogTimeLabel: `${currentHourNum.toString().padStart(2, '0')}:00 बजे (लाइव)`
+    };
+  }, [hourlyLogs, todayDateStr, currentHourNum]);
+
+  // Feeders with Current Hour R-Y-B readings applied
+  const effectiveFeeders: Feeder[] = useMemo(() => {
+    return feeders.map(feeder => {
+      if (activeHourlyLog && activeHourlyLog.readings && activeHourlyLog.readings[feeder.id]) {
+        const reading = activeHourlyLog.readings[feeder.id];
+        const r = typeof reading.rAmp === 'number' ? reading.rAmp : 0;
+        const y = typeof reading.yAmp === 'number' ? reading.yAmp : 0;
+        const b = typeof reading.bAmp === 'number' ? reading.bAmp : 0;
+        const avg = typeof reading.avgAmp === 'number' ? reading.avgAmp : Math.round((r + y + b) / 3);
+        const mw = typeof reading.powerMw === 'number' ? reading.powerMw : +(avg * 11 * 1.732 * 0.92 / 1000).toFixed(2);
+        const isReadingZero = r === 0 && y === 0 && b === 0;
+
+        const nextStatus: FeederStatus = isReadingZero 
+          ? (feeder.status === 'TRIPPED' ? 'TRIPPED' : 'OFF') 
+          : (feeder.status === 'TRIPPED' ? 'TRIPPED' : 'ON');
+        const updatedFeeder: Feeder = {
+          ...feeder,
+          status: nextStatus,
+          currentAmp: avg,
+          powerMw: mw,
+          rAmp: r,
+          yAmp: y,
+          bAmp: b,
+          voltageKv: isReadingZero ? 0 : 11.0
+        };
+        return updatedFeeder;
+      }
+
+      // Default fallback
+      const r = feeder.rAmp !== undefined ? feeder.rAmp : (feeder.status === 'ON' ? Math.round(feeder.currentAmp * 1.02) : 0);
+      const y = feeder.yAmp !== undefined ? feeder.yAmp : (feeder.status === 'ON' ? Math.round(feeder.currentAmp * 0.98) : 0);
+      const b = feeder.bAmp !== undefined ? feeder.bAmp : (feeder.status === 'ON' ? feeder.currentAmp : 0);
+      const defaultFeeder: Feeder = {
+        ...feeder,
+        rAmp: r,
+        yAmp: y,
+        bAmp: b
+      };
+      return defaultFeeder;
+    });
+  }, [feeders, activeHourlyLog]);
+
   const updateFirebaseConfig = () => {};
 
   const saveHourlyLog = async (newLog: HourlySubstationLog) => {
-    setHourlyLogs(prev => ({
-      ...prev,
+    const updatedHourly = {
+      ...hourlyLogs,
       [newLog.id]: newLog
-    }));
+    };
+    setHourlyLogs(updatedHourly);
+
+    // Also update current live feeders with this reading
+    const nextFeeders: Feeder[] = feeders.map(f => {
+      const reading = newLog.readings?.[f.id];
+      if (reading) {
+        const isOff = reading.rAmp === 0 && reading.yAmp === 0 && reading.bAmp === 0;
+        const newStatus: FeederStatus = isOff 
+          ? (f.status === 'TRIPPED' ? 'TRIPPED' : 'OFF') 
+          : (f.status === 'TRIPPED' ? 'TRIPPED' : 'ON');
+        return {
+          ...f,
+          status: newStatus,
+          currentAmp: reading.avgAmp,
+          powerMw: reading.powerMw,
+          rAmp: reading.rAmp,
+          yAmp: reading.yAmp,
+          bAmp: reading.bAmp,
+          voltageKv: isOff ? 0 : 11.0
+        };
+      }
+      return f;
+    });
+
+    setFeeders(nextFeeders);
 
     try {
       const { realtimeDb } = initFirebase();
       const logRef = ref(realtimeDb, `substation_arniya/hourly_logs/${newLog.id}`);
       await set(logRef, newLog);
+
+      // Sync state to cloud so all devices get updated
+      await syncStateToCloud({
+        feeders: nextFeeders,
+        incomers,
+        logs,
+        updatedAt: new Date().toISOString(),
+        updatedBy: newLog.operatorName || operatorName
+      });
     } catch (err) {
       console.error('Failed to save hourly log to cloud:', err);
     }
@@ -191,7 +302,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const op = customOperator || operatorName;
     const currentTime = new Date().toISOString();
 
-    const nextFeeders: Feeder[] = feeders.map(feeder => {
+    const nextFeeders: Feeder[] = effectiveFeeders.map(feeder => {
       if (feeder.id !== feederId) return feeder;
 
       const isCurrentlyOn = feeder.status === 'ON';
@@ -211,6 +322,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
       const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
       const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
+      const r = nextStatus === 'ON' ? Math.round(newCurrent * 1.02) : 0;
+      const y = nextStatus === 'ON' ? Math.round(newCurrent * 0.98) : 0;
+      const b = nextStatus === 'ON' ? newCurrent : 0;
 
       return {
         ...feeder,
@@ -218,6 +332,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         voltageKv: newVoltage,
         currentAmp: newCurrent,
         powerMw: newPower,
+        rAmp: r,
+        yAmp: y,
+        bAmp: b,
         lastStatusChange: currentTime,
         totalUptimeSecondsToday: newUptime,
         totalDowntimeSecondsToday: newDowntime,
@@ -261,7 +378,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const tripFeeder = async (feederId: string, reason?: string) => {
     const currentTime = new Date().toISOString();
 
-    const nextFeeders: Feeder[] = feeders.map(feeder => {
+    const nextFeeders: Feeder[] = effectiveFeeders.map(feeder => {
       if (feeder.id !== feederId) return feeder;
 
       const previousStatus = feeder.status;
@@ -282,6 +399,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         voltageKv: 0,
         currentAmp: 0,
         powerMw: 0,
+        rAmp: 0,
+        yAmp: 0,
+        bAmp: 0,
         lastStatusChange: currentTime,
         totalUptimeSecondsToday: newUptime,
         totalDowntimeSecondsToday: newDowntime,
@@ -339,7 +459,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setIncomers(nextIncomers);
 
     await syncStateToCloud({
-      feeders,
+      feeders: effectiveFeeders,
       incomers: nextIncomers,
       logs,
       updatedAt: currentTime,
@@ -348,7 +468,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const updateFeederRemark = async (feederId: string, remark: string) => {
-    const nextFeeders = feeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
+    const nextFeeders = effectiveFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
     setFeeders(nextFeeders);
 
     await syncStateToCloud({
@@ -377,7 +497,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const clearLogs = async () => {
     setLogs([]);
     await syncStateToCloud({
-      feeders,
+      feeders: effectiveFeeders,
       incomers,
       logs: [],
       updatedAt: new Date().toISOString(),
@@ -385,14 +505,14 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const activeFeeders = feeders.filter(f => f.status === 'ON').length;
-  const inactiveFeeders = feeders.length - activeFeeders;
-  const totalLoadMw = +(feeders.reduce((sum, f) => sum + (f.status === 'ON' ? f.powerMw : 0), 0)).toFixed(2);
-  const totalTrippingsToday = feeders.reduce((sum, f) => sum + f.tripCountToday, 0);
+  const activeFeeders = effectiveFeeders.filter(f => f.status === 'ON').length;
+  const inactiveFeeders = effectiveFeeders.length - activeFeeders;
+  const totalLoadMw = +(effectiveFeeders.reduce((sum, f) => sum + (f.status === 'ON' ? f.powerMw : 0), 0)).toFixed(2);
+  const totalTrippingsToday = effectiveFeeders.reduce((sum, f) => sum + f.tripCountToday, 0);
 
   let totalUpSeconds = 0;
   let totalDownSeconds = 0;
-  feeders.forEach(f => {
+  effectiveFeeders.forEach(f => {
     const currentElapsed = Math.max(0, Math.floor((now.getTime() - new Date(f.lastStatusChange).getTime()) / 1000));
     if (f.status === 'ON') {
       totalUpSeconds += f.totalUptimeSecondsToday + currentElapsed;
@@ -407,7 +527,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const substationUptimePercentage = totalTime > 0 ? +((totalUpSeconds / totalTime) * 100).toFixed(1) : 100;
 
   const stats: SubstationStats = {
-    totalFeeders: feeders.length,
+    totalFeeders: effectiveFeeders.length,
     activeFeeders,
     inactiveFeeders,
     totalLoadMw,
@@ -419,9 +539,10 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <SubstationContext.Provider
       value={{
         incomers,
-        feeders,
+        feeders: effectiveFeeders,
         logs,
         hourlyLogs,
+        activeHourlyLogTimeLabel,
         role,
         language,
         operatorName,

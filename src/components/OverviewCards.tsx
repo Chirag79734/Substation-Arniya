@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 export const OverviewCards: React.FC = () => {
-  const { stats, feeders, language, now } = useSubstation();
+  const { stats, feeders, language, now, activeHourlyLogTimeLabel } = useSubstation();
 
   let totalUpSeconds = 0;
   feeders.forEach(f => {
@@ -94,7 +94,7 @@ export const OverviewCards: React.FC = () => {
           <span className="text-sm font-semibold text-amber-400">MW</span>
         </div>
         <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-          <span>{language === 'hi' ? 'पावर ट्रांसफार्मर 2x10 MVA' : 'Power Trf 2x10 MVA'}</span>
+          <span className="text-[11px] text-amber-300/90 font-medium">🕒 {activeHourlyLogTimeLabel}</span>
           <span className="text-amber-300 font-mono-scada">~{((stats.totalLoadMw / 16) * 100).toFixed(0)}% Load</span>
         </div>
       </div>
