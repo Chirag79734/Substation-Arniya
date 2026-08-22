@@ -193,8 +193,8 @@ export const Header: React.FC = () => {
           <div className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
             {[
               { id: 'overview', labelHi: 'डैशबोर्ड ओवरव्यू', labelEn: 'Overview', icon: Activity },
-              { id: 'incomer1', labelHi: 'इनकमिंग 1 (5 फीडर)', labelEn: 'Incoming 1 (5 Feeders)', icon: Layers },
-              { id: 'incomer2', labelHi: 'इनकमिंग 2 (3 फीडर)', labelEn: 'Incoming 2 (3 Feeders)', icon: Layers },
+              { id: 'incomer1', labelHi: 'इनकमिंग 1st (5 फीडर)', labelEn: 'Incoming 1st (5 Feeders)', icon: Layers },
+              { id: 'incomer2', labelHi: 'इनकमिंग 2nd (3 फीडर)', labelEn: 'Incoming 2nd (3 Feeders)', icon: Layers },
               { id: 'diagram', labelHi: 'सिंगल लाइन डायग्राम (SLD)', labelEn: 'Single Line Diagram', icon: Zap },
               { id: 'analytics', labelHi: 'विश्लेषण व रनटाइम', labelEn: 'Analytics & Uptime', icon: BarChart3 },
               { id: 'logs', labelHi: 'इवेंट लॉगबुक', labelEn: 'Logbook & History', icon: FileText },

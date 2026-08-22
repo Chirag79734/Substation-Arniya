@@ -37,12 +37,44 @@ interface SubstationContextType {
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
 
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v2';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v2';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v2';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v2';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v2';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v2';
+const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v3';
+const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v3';
+const STORAGE_KEY_LOGS = 'substation_arniya_logs_v3';
+const STORAGE_KEY_ROLE = 'substation_arniya_role_v3';
+const STORAGE_KEY_LANG = 'substation_arniya_lang_v3';
+const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v3';
+
+// Helper to normalize and ensure corrected names
+function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
+  return INITIAL_FEEDERS.map((initF, idx) => {
+    const existing = incomingList.find(f => f.id === initF.id || (idx < incomingList.length && incomingList[idx].incomerId === initF.incomerId && incomingList[idx].name.toLowerCase().includes(initF.name.slice(0,3).toLowerCase())));
+    if (existing) {
+      return {
+        ...existing,
+        id: initF.id,
+        name: initF.name,
+        hindiName: initF.hindiName,
+        category: initF.category,
+        incomerId: initF.incomerId
+      };
+    }
+    return initF;
+  });
+}
+
+function normalizeIncomers(incomingList: Incomer[]): Incomer[] {
+  return INITIAL_INCOMERS.map((initInc) => {
+    const existing = incomingList.find(i => i.id === initInc.id);
+    if (existing) {
+      return {
+        ...existing,
+        name: initInc.name,
+        hindiName: initInc.hindiName
+      };
+    }
+    return initInc;
+  });
+}
 
 export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [now, setNow] = useState<Date>(new Date());
@@ -53,12 +85,12 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const [incomers, setIncomers] = useState<Incomer[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_INCOMERS);
-    return saved ? JSON.parse(saved) : INITIAL_INCOMERS;
+    return saved ? normalizeIncomers(JSON.parse(saved)) : INITIAL_INCOMERS;
   });
 
   const [feeders, setFeeders] = useState<Feeder[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FEEDERS);
-    return saved ? JSON.parse(saved) : INITIAL_FEEDERS;
+    return saved ? normalizeFeeders(JSON.parse(saved)) : INITIAL_FEEDERS;
   });
 
   const [logs, setLogs] = useState<FeederLog[]>(() => {
@@ -110,7 +142,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubFeeders = onValue(feedersRef, (snapshot) => {
       const val = snapshot.val();
       if (val && Array.isArray(val) && val.length > 0) {
-        setFeeders(val);
+        const normalized = normalizeFeeders(val);
+        setFeeders(normalized);
       } else if (!val) {
         set(feedersRef, INITIAL_FEEDERS);
       }
@@ -120,7 +153,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubIncomers = onValue(incomersRef, (snapshot) => {
       const val = snapshot.val();
       if (val && Array.isArray(val) && val.length > 0) {
-        setIncomers(val);
+        const normalized = normalizeIncomers(val);
+        setIncomers(normalized);
       } else if (!val) {
         set(incomersRef, INITIAL_INCOMERS);
       }
