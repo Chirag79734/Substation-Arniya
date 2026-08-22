@@ -17,6 +17,7 @@ export const Header: React.FC = () => {
   const { 
     currentUser,
     logout,
+    isAdmin,
     role, 
     language, 
     setLanguage, 
@@ -123,10 +124,10 @@ export const Header: React.FC = () => {
                 <div className="flex flex-col text-right">
                   <span className="text-xs font-bold text-white flex items-center justify-end space-x-1">
                     <span>{currentUser?.name || operatorName}</span>
-                    <span className={`w-2 h-2 rounded-full ${role === 'operator' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
+                    <span className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-purple-400 animate-pulse' : role === 'operator' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    {currentUser?.designation || (role === 'operator' ? 'ऑपरेटर (Edit Access)' : 'अधिकारी (View Only)')}
+                    {currentUser?.designation || (isAdmin ? 'सुपर एडमिन (पूर्ण अधिकार)' : role === 'operator' ? 'ऑपरेटर (Edit Access)' : 'अधिकारी (View Only)')}
                   </span>
                 </div>
 
@@ -166,7 +167,22 @@ export const Header: React.FC = () => {
             </div>
           )}
 
-          {role === 'operator' && (
+          {isAdmin ? (
+            <div className="mt-3 py-1 px-3 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center justify-between text-xs text-purple-300">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                <span className="font-semibold">
+                  {language === 'hi' ? 'सुपर एडमिन मोड एक्टिव (पूर्ण नियंत्रण व लॉग प्रबंधन अधिकार)' : 'Super Admin Mode Active (Full Control & Log Management Rights)'}:
+                </span>
+                <span className="bg-slate-900 border border-purple-500/40 rounded px-2 py-0.5 text-xs text-purple-200 font-bold">
+                  {operatorName}
+                </span>
+              </div>
+              <span className="text-slate-400 hidden sm:inline text-[11px]">
+                {language === 'hi' ? 'फीडर स्विचिंग, घंटेवार लोड सबमिशन व लॉगबुक साफ़ करने का विशेष अधिकार' : 'Switching, hourly load submission, and exclusive log deletion rights'}
+              </span>
+            </div>
+          ) : role === 'operator' ? (
             <div className="mt-3 py-1 px-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between text-xs text-amber-300">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
@@ -181,9 +197,7 @@ export const Header: React.FC = () => {
                 {language === 'hi' ? 'क्लिक करके किसी भी फीडर को तुरंत चालू या बंद करें' : 'Click on any feeder switch to instantly turn ON or OFF'}
               </span>
             </div>
-          )}
-
-          {role === 'officer' && (
+          ) : (
             <div className="mt-3 py-1 px-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg flex items-center justify-between text-xs text-indigo-300">
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-4 h-4 text-indigo-400" />

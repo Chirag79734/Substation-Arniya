@@ -18,6 +18,7 @@ interface SubstationContextType {
   logs: FeederLog[];
   hourlyLogs: Record<string, HourlySubstationLog>;
   activeHourlyLogTimeLabel: string;
+  isAdmin: boolean;
   role: UserRole;
   language: Language;
   operatorName: string;
@@ -42,6 +43,7 @@ interface SubstationContextType {
   saveHourlyLog: (log: HourlySubstationLog) => Promise<void>;
   resetAllData: () => void;
   clearLogs: () => void;
+  deleteSingleLog: (logId: string) => Promise<void>;
 }
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
@@ -567,7 +569,10 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const clearLogs = async () => {
-    if (role !== 'operator') return;
+    if (currentUser?.role !== 'admin') {
+      alert('केवल सबस्टेशन एडमिन (Admin) को ही लॉगबुक हटाने का अधिकार है!');
+      return;
+    }
 
     setLogs([]);
     await syncStateToCloud({
@@ -575,7 +580,24 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       incomers,
       logs: [],
       updatedAt: new Date().toISOString(),
-      updatedBy: 'Clear Logs'
+      updatedBy: `${currentUser?.name || 'Admin'} (Clear All Logs)`
+    });
+  };
+
+  const deleteSingleLog = async (logId: string) => {
+    if (currentUser?.role !== 'admin') {
+      alert('केवल सबस्टेशन एडमिन (Admin) को ही लॉग हटाने का अधिकार है!');
+      return;
+    }
+
+    const nextLogs = logs.filter(l => l.id !== logId);
+    setLogs(nextLogs);
+    await syncStateToCloud({
+      feeders: effectiveFeeders,
+      incomers,
+      logs: nextLogs,
+      updatedAt: new Date().toISOString(),
+      updatedBy: `${currentUser?.name || 'Admin'} (Delete Log)`
     });
   };
 
@@ -622,6 +644,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         logs,
         hourlyLogs,
         activeHourlyLogTimeLabel,
+        isAdmin: currentUser?.role === 'admin',
         role,
         language,
         operatorName,
@@ -645,7 +668,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateFeederRemark,
         saveHourlyLog,
         resetAllData,
-        clearLogs
+        clearLogs,
+        deleteSingleLog
       }}
     >
       {children}

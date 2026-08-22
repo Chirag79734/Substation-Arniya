@@ -14,7 +14,7 @@ import {
 import { formatDateTime, formatDuration, exportLogsToCsv } from '../utils/formatters';
 
 export const LogBook: React.FC = () => {
-  const { logs, language, clearLogs, feeders } = useSubstation();
+  const { logs, language, clearLogs, deleteSingleLog, feeders, isAdmin } = useSubstation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFeeder, setSelectedFeeder] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
@@ -77,17 +77,20 @@ export const LogBook: React.FC = () => {
             <span>{language === 'hi' ? 'प्रिंट रिपोर्ट' : 'Print Log'}</span>
           </button>
 
-          {logs.length > 0 && (
+          {isAdmin && logs.length > 0 && (
             <button
               onClick={() => {
-                if (window.confirm(language === 'hi' ? 'क्या आप सभी लॉग्स को हटाना चाहते हैं?' : 'Clear all event logs?')) {
+                if (window.confirm(language === 'hi' 
+                  ? 'सावधानी: क्या आप वाकई पूरी लॉगबुक साफ़ करना चाहते हैं? यह क्रिया केवल सबस्टेशन एडमिन द्वारा की जा सकती है।' 
+                  : 'Caution: Are you sure you want to clear all logs? Only Substation Admin can perform this action.')) {
                   clearLogs();
                 }
               }}
-              className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-950/30 transition"
-              title="Clear Logs"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs font-bold transition shadow-sm"
+              title="Clear All Logs (Admin Only)"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{language === 'hi' ? 'लॉग साफ़ करें (Admin)' : 'Clear (Admin)'}</span>
             </button>
           )}
         </div>
@@ -145,12 +148,13 @@ export const LogBook: React.FC = () => {
               <th className="py-3 px-4">{language === 'hi' ? 'पिछली स्थिति में अवधि' : 'Prev Duration'}</th>
               <th className="py-3 px-4">{language === 'hi' ? 'ऑपरेटर (SSO)' : 'Operator'}</th>
               <th className="py-3 px-4">{language === 'hi' ? 'कारण / रिमार्क' : 'Reason / Note'}</th>
+              {isAdmin && <th className="py-3 px-4 text-right">{language === 'hi' ? 'हटाएँ' : 'Action'}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-slate-500">
+                <td colSpan={isAdmin ? 8 : 7} className="py-8 text-center text-slate-500">
                   {language === 'hi' ? 'कोई लॉग रिकॉर्ड नहीं मिला' : 'No log records found'}
                 </td>
               </tr>
@@ -206,6 +210,21 @@ export const LogBook: React.FC = () => {
                     <td className="py-3 px-4 text-slate-400 max-w-xs truncate" title={log.reason}>
                       {log.reason || '-'}
                     </td>
+                    {isAdmin && (
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(language === 'hi' ? 'क्या आप इस लॉग प्रविष्टि को हटाना चाहते हैं?' : 'Delete this log entry?')) {
+                              deleteSingleLog(log.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition"
+                          title="Delete Log (Admin)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })

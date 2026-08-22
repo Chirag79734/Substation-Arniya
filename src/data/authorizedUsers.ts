@@ -62,5 +62,15 @@ export const INITIAL_WHITELISTED_USERS: AuthorizedUser[] = [
     designation: 'कनिष्ठ अभियंता (Junior Engineer)',
     pin: '5678',
     role: 'officer'
+  },
+
+  // ==================== SYSTEM ADMIN (FULL SUPERUSER & LOG DELETION RIGHT) ====================
+  {
+    id: '9999',
+    name: 'सबस्टेशन एडमिन (Admin)',
+    nameEn: 'Substation Admin',
+    designation: 'सिस्टम एडमिनिस्ट्रेटर (Log Clear Right)',
+    pin: '9999',
+    role: 'admin'
   }
 ];
