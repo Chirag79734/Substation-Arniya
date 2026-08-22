@@ -1,10 +1,17 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getDatabase, Database } from 'firebase/database';
+import { 
+  getFirestore, 
+  Firestore, 
+  doc, 
+  setDoc
+} from 'firebase/firestore';
+import { getDatabase, Database, ref, set } from 'firebase/database';
+import { Feeder, Incomer, FeederLog } from '../types/substation';
 
 export interface FirebaseConfigType {
   apiKey: string;
   authDomain: string;
-  databaseURL: string;
+  databaseURL?: string;
   projectId: string;
   storageBucket: string;
   messagingSenderId: string;
@@ -12,7 +19,6 @@ export interface FirebaseConfigType {
   measurementId?: string;
 }
 
-// Pre-configured Firebase keys for Substation Arniya
 export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
   apiKey: "AIzaSyAUDjJRphY2pyr7tLvfeZa8zQZFF-x8Q_4",
   authDomain: "substation-arniya.firebaseapp.com",
@@ -24,7 +30,7 @@ export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
   measurementId: "G-RHE89SGR5R"
 };
 
-const STORAGE_KEY_FIREBASE_CONFIG = 'substation_arniya_fb_config_v2';
+const STORAGE_KEY_FIREBASE_CONFIG = 'substation_arniya_fb_config_v3';
 
 export function getSavedFirebaseConfig(): FirebaseConfigType {
   try {
@@ -45,12 +51,13 @@ export function clearFirebaseConfig() {
 }
 
 let app: FirebaseApp | null = null;
-let db: Database | null = null;
+let firestoreDb: Firestore | null = null;
+let realtimeDb: Database | null = null;
 
-export function initFirebase(customConfig?: FirebaseConfigType): { app: FirebaseApp | null; db: Database | null } {
+export function initFirebase(customConfig?: FirebaseConfigType) {
   const config = customConfig || getSavedFirebaseConfig();
   if (!config || !config.apiKey) {
-    return { app: null, db: null };
+    return { app: null, firestoreDb: null, realtimeDb: null };
   }
 
   try {
@@ -59,10 +66,52 @@ export function initFirebase(customConfig?: FirebaseConfigType): { app: Firebase
     } else {
       app = getApps()[0];
     }
-    db = getDatabase(app);
-    return { app, db };
+
+    try {
+      firestoreDb = getFirestore(app);
+    } catch (e) {
+      console.warn('Firestore init warning:', e);
+    }
+
+    try {
+      realtimeDb = getDatabase(app);
+    } catch (e) {
+      console.warn('Realtime DB init warning:', e);
+    }
+
+    return { app, firestoreDb, realtimeDb };
   } catch (err) {
-    console.warn('Firebase initialization note (RTDB might need Create Database in Console):', err);
-    return { app: null, db: null };
+    console.error('Firebase initialization error:', err);
+    return { app: null, firestoreDb: null, realtimeDb: null };
+  }
+}
+
+export interface LiveStatePayload {
+  feeders: Feeder[];
+  incomers: Incomer[];
+  logs: FeederLog[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export async function syncStateToCloud(payload: LiveStatePayload) {
+  const { firestoreDb, realtimeDb } = initFirebase();
+
+  if (firestoreDb) {
+    try {
+      const stateDocRef = doc(firestoreDb, 'substation_arniya', 'live_state');
+      await setDoc(stateDocRef, payload, { merge: true });
+    } catch (err) {
+      console.warn('Firestore setDoc notice:', err);
+    }
+  }
+
+  if (realtimeDb) {
+    try {
+      const rtdbRef = ref(realtimeDb, 'substation_arniya/live_state');
+      await set(rtdbRef, payload);
+    } catch (err) {
+      console.warn('RTDB set notice:', err);
+    }
   }
 }

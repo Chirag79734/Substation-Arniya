@@ -10,7 +10,8 @@ import {
   Sliders, 
   FileText, 
   Activity, 
-  Cloud
+  Cloud,
+  AlertTriangle
 } from 'lucide-react';
 import { FirebaseModal } from './FirebaseModal';
 
@@ -26,7 +27,9 @@ export const Header: React.FC = () => {
     setActiveTab, 
     now, 
     resetAllData,
-    isFirebaseConnected 
+    isFirebaseConnected,
+    cloudSyncError,
+    lastCloudSyncTime
   } = useSubstation();
 
   const [isFirebaseModalOpen, setIsFirebaseModalOpen] = useState(false);
@@ -77,19 +80,28 @@ export const Header: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Cloud Sync Status Badge */}
               <button
                 onClick={() => setIsFirebaseModalOpen(true)}
                 className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border ${
-                  isFirebaseConnected
+                  cloudSyncError
+                    ? 'bg-rose-950/80 text-rose-300 border-rose-700 hover:bg-rose-900 animate-pulse'
+                    : isFirebaseConnected
                     ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700 hover:bg-emerald-900'
                     : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
                 }`}
-                title="Firebase Cloud Database Connection"
+                title={cloudSyncError || "Multi-Device Cloud Sync Status"}
               >
-                <Cloud className={`w-3.5 h-3.5 ${isFirebaseConnected ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
+                {cloudSyncError ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                ) : (
+                  <Cloud className={`w-3.5 h-3.5 ${isFirebaseConnected ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
+                )}
                 <span>
-                  {isFirebaseConnected
-                    ? (language === 'hi' ? 'क्लाउड सिंक (Live)' : 'Cloud: LIVE')
+                  {cloudSyncError
+                    ? (language === 'hi' ? 'क्लाउड रूल्स चेक करें' : 'Check DB Rules')
+                    : isFirebaseConnected
+                    ? (language === 'hi' ? `क्लाउड लाइव ${lastCloudSyncTime ? `(${lastCloudSyncTime})` : ''}` : `Cloud: LIVE ${lastCloudSyncTime ? `(${lastCloudSyncTime})` : ''}`)
                     : (language === 'hi' ? 'क्लाउड कनेक्ट करें' : 'Connect Cloud')}
                 </span>
               </button>
@@ -150,6 +162,25 @@ export const Header: React.FC = () => {
             </div>
 
           </div>
+
+          {cloudSyncError && (
+            <div className="mt-3 py-2 px-3 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center justify-between text-xs text-rose-300">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>
+                  <strong>{language === 'hi' ? 'Firebase डेटाबेस सुरक्षा नियम:' : 'Firebase Security Rules:'}</strong> {language === 'hi' ? 'मल्टी-डिवाइस लाइव सिंक के लिए Firebase Console में Database Rules को "Test Mode" में ऑन करें।' : 'Enable test mode in Firebase Console -> Database -> Rules for multi-device sync.'}
+                </span>
+              </div>
+              <a
+                href="https://console.firebase.google.com/project/substation-arniya/database"
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-rose-300 hover:text-white font-bold"
+              >
+                Open Rules
+              </a>
+            </div>
+          )}
 
           {role === 'operator' && (
             <div className="mt-3 py-1 px-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between text-xs text-amber-300">

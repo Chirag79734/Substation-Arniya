@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationStats, FeederStatus } from '../types/substation';
 import { INITIAL_INCOMERS, INITIAL_FEEDERS, INITIAL_LOGS } from '../data/initialData';
 import { 
@@ -6,9 +6,11 @@ import {
   getSavedFirebaseConfig, 
   saveFirebaseConfig, 
   clearFirebaseConfig, 
-  FirebaseConfigType 
+  FirebaseConfigType,
+  syncStateToCloud
 } from '../services/firebase';
-import { ref, onValue, set, Database } from 'firebase/database';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
 
 interface SubstationContextType {
   incomers: Incomer[];
@@ -21,6 +23,8 @@ interface SubstationContextType {
   stats: SubstationStats;
   now: Date;
   isFirebaseConnected: boolean;
+  cloudSyncError: string | null;
+  lastCloudSyncTime: string | null;
   firebaseConfig: FirebaseConfigType | null;
   setRole: (role: UserRole) => void;
   setLanguage: (lang: Language) => void;
@@ -37,14 +41,13 @@ interface SubstationContextType {
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
 
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v4';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v4';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v4';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v4';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v4';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v4';
+const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v5';
+const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v5';
+const STORAGE_KEY_LOGS = 'substation_arniya_logs_v5';
+const STORAGE_KEY_ROLE = 'substation_arniya_role_v5';
+const STORAGE_KEY_LANG = 'substation_arniya_lang_v5';
+const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v5';
 
-// Pure, strict ID-based normalizer with zero cross-contamination
 function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
   if (!incomingList || !Array.isArray(incomingList)) return INITIAL_FEEDERS;
   
@@ -107,7 +110,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   
   const [firebaseConfig, setFirebaseConfigState] = useState<FirebaseConfigType | null>(() => getSavedFirebaseConfig());
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
-  const dbRef = useRef<Database | null>(null);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
 
   const [incomers, setIncomers] = useState<Incomer[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_INCOMERS);
@@ -151,53 +155,77 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (!firebaseConfig) {
       setIsFirebaseConnected(false);
-      dbRef.current = null;
       return;
     }
 
-    const { db } = initFirebase(firebaseConfig);
-    if (!db) {
-      setIsFirebaseConnected(false);
-      return;
+    const { firestoreDb, realtimeDb } = initFirebase(firebaseConfig);
+
+    const handleLivePayload = (payload: any) => {
+      if (!payload) return;
+      setIsFirebaseConnected(true);
+      setCloudSyncError(null);
+      setLastCloudSyncTime(new Date().toLocaleTimeString('en-IN'));
+
+      if (payload.feeders && Array.isArray(payload.feeders)) {
+        setFeeders(normalizeFeeders(payload.feeders));
+      }
+      if (payload.incomers && Array.isArray(payload.incomers)) {
+        setIncomers(normalizeIncomers(payload.incomers));
+      }
+      if (payload.logs && Array.isArray(payload.logs)) {
+        setLogs(payload.logs);
+      }
+    };
+
+    let unsubFirestore: (() => void) | null = null;
+    let unsubRTDB: (() => void) | null = null;
+
+    if (firestoreDb) {
+      try {
+        const docRef = doc(firestoreDb, 'substation_arniya', 'live_state');
+        unsubFirestore = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            handleLivePayload(docSnap.data());
+          } else {
+            syncStateToCloud({
+              feeders: INITIAL_FEEDERS,
+              incomers: INITIAL_INCOMERS,
+              logs: INITIAL_LOGS,
+              updatedAt: new Date().toISOString(),
+              updatedBy: 'Initial Setup'
+            });
+            setIsFirebaseConnected(true);
+          }
+        }, (err) => {
+          console.warn('Firestore listener note:', err.message);
+          if (err.message.includes('permission-denied') || err.message.includes('insufficient permissions')) {
+            setCloudSyncError('Firebase Rules Locked: Please open Firebase Console -> Build -> Firestore/Database -> Set Rules to test mode.');
+          }
+        });
+      } catch (e) {
+        console.warn('Firestore onSnapshot init error', e);
+      }
     }
 
-    dbRef.current = db;
-    setIsFirebaseConnected(true);
-
-    const feedersRef = ref(db, 'substation_arniya/feeders');
-    const unsubFeeders = onValue(feedersRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val && Array.isArray(val) && val.length > 0) {
-        setFeeders(normalizeFeeders(val));
-      } else if (!val) {
-        set(feedersRef, INITIAL_FEEDERS);
+    if (realtimeDb) {
+      try {
+        const rtdbRef = ref(realtimeDb, 'substation_arniya/live_state');
+        unsubRTDB = onValue(rtdbRef, (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            handleLivePayload(val);
+          }
+        }, (err) => {
+          console.warn('RTDB listener note:', err.message);
+        });
+      } catch (e) {
+        console.warn('RTDB onValue init error', e);
       }
-    });
-
-    const incomersRef = ref(db, 'substation_arniya/incomers');
-    const unsubIncomers = onValue(incomersRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val && Array.isArray(val) && val.length > 0) {
-        setIncomers(normalizeIncomers(val));
-      } else if (!val) {
-        set(incomersRef, INITIAL_INCOMERS);
-      }
-    });
-
-    const logsRef = ref(db, 'substation_arniya/logs');
-    const unsubLogs = onValue(logsRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val && Array.isArray(val)) {
-        setLogs(val);
-      } else if (!val) {
-        set(logsRef, INITIAL_LOGS);
-      }
-    });
+    }
 
     return () => {
-      unsubFeeders();
-      unsubIncomers();
-      unsubLogs();
+      if (unsubFirestore) unsubFirestore();
+      if (unsubRTDB) unsubRTDB();
     };
   }, [firebaseConfig]);
 
@@ -284,9 +312,13 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         setLogs(prevLogs => {
           const updatedLogs = [newLog, ...prevLogs];
-          if (dbRef.current) {
-            set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
-          }
+          syncStateToCloud({
+            feeders: nextFeeders,
+            incomers,
+            logs: updatedLogs,
+            updatedAt: currentTime,
+            updatedBy: op
+          });
           return updatedLogs;
         });
 
@@ -303,9 +335,14 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       });
 
-      if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-      }
+      syncStateToCloud({
+        feeders: nextFeeders,
+        incomers,
+        logs,
+        updatedAt: currentTime,
+        updatedBy: op
+      });
+
       return nextFeeders;
     });
   };
@@ -347,9 +384,13 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         setLogs(prevLogs => {
           const updatedLogs = [newLog, ...prevLogs];
-          if (dbRef.current) {
-            set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
-          }
+          syncStateToCloud({
+            feeders: nextFeeders,
+            incomers,
+            logs: updatedLogs,
+            updatedAt: currentTime,
+            updatedBy: operatorName
+          });
           return updatedLogs;
         });
 
@@ -367,9 +408,14 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       });
 
-      if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-      }
+      syncStateToCloud({
+        feeders: nextFeeders,
+        incomers,
+        logs,
+        updatedAt: currentTime,
+        updatedBy: operatorName
+      });
+
       return nextFeeders;
     });
   };
@@ -388,9 +434,14 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       });
 
-      if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/incomers'), nextIncomers);
-      }
+      syncStateToCloud({
+        feeders,
+        incomers: nextIncomers,
+        logs,
+        updatedAt: currentTime,
+        updatedBy: operatorName
+      });
+
       return nextIncomers;
     });
   };
@@ -398,9 +449,13 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateFeederRemark = (feederId: string, remark: string) => {
     setFeeders(prevFeeders => {
       const nextFeeders = prevFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
-      if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-      }
+      syncStateToCloud({
+        feeders: nextFeeders,
+        incomers,
+        logs,
+        updatedAt: new Date().toISOString(),
+        updatedBy: operatorName
+      });
       return nextFeeders;
     });
   };
@@ -413,19 +468,25 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.removeItem(STORAGE_KEY_INCOMERS);
     localStorage.removeItem(STORAGE_KEY_LOGS);
 
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/feeders'), INITIAL_FEEDERS);
-      set(ref(dbRef.current, 'substation_arniya/incomers'), INITIAL_INCOMERS);
-      set(ref(dbRef.current, 'substation_arniya/logs'), INITIAL_LOGS);
-    }
+    syncStateToCloud({
+      feeders: INITIAL_FEEDERS,
+      incomers: INITIAL_INCOMERS,
+      logs: INITIAL_LOGS,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'System Reset'
+    });
   };
 
   const clearLogs = () => {
     setLogs([]);
     localStorage.removeItem(STORAGE_KEY_LOGS);
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/logs'), []);
-    }
+    syncStateToCloud({
+      feeders,
+      incomers,
+      logs: [],
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'Clear Logs'
+    });
   };
 
   const activeFeeders = feeders.filter(f => f.status === 'ON').length;
@@ -471,6 +532,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         stats,
         now,
         isFirebaseConnected,
+        cloudSyncError,
+        lastCloudSyncTime,
         firebaseConfig,
         setRole,
         setLanguage,
