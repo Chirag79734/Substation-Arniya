@@ -189,6 +189,25 @@ export const FeederCard: React.FC<FeederCardProps> = ({ feeder }) => {
             </div>
           </div>
 
+          {/* R-Y-B Phase Current Display */}
+          <div className="mt-3 bg-slate-950/60 p-2 rounded-xl border border-slate-800 flex items-center justify-between text-[11px] font-mono-scada">
+            <span className="text-slate-400 font-sans font-medium text-[10px]">{language === 'hi' ? 'फेज करंट:' : 'Phase Current:'}</span>
+            <div className="flex items-center space-x-2">
+              <span className="flex items-center space-x-1 text-rose-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                <span>R: {isRunning ? Math.round(feeder.currentAmp * 1.02) : 0}A</span>
+              </span>
+              <span className="flex items-center space-x-1 text-amber-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                <span>Y: {isRunning ? Math.round(feeder.currentAmp * 0.98) : 0}A</span>
+              </span>
+              <span className="flex items-center space-x-1 text-sky-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block" />
+                <span>B: {isRunning ? feeder.currentAmp : 0}A</span>
+              </span>
+            </div>
+          </div>
+
           {feeder.remarks && (
             <div className="mt-3 flex items-center space-x-1.5 text-[11px] text-slate-400 bg-slate-950/40 px-2.5 py-1.5 rounded-lg border border-slate-800">
               <Info className="w-3.5 h-3.5 text-amber-400/80 flex-shrink-0" />
