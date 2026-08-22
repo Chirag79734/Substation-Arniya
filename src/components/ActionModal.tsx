@@ -45,6 +45,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
 
   const [selectedReason, setSelectedReason] = useState(defaultReason);
   const [customRemark, setCustomRemark] = useState('');
+  const [isManualTimeChanged, setIsManualTimeChanged] = useState<boolean>(false);
   
   // Time input (HH:MM)
   const [timeString, setTimeString] = useState<string>(() => {
@@ -60,6 +61,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
       const hh = d.getHours().toString().padStart(2, '0');
       const mm = d.getMinutes().toString().padStart(2, '0');
       setTimeString(`${hh}:${mm}`);
+      setIsManualTimeChanged(false);
       setSelectedReason(
         isTurningOff
           ? (language === 'hi' ? 'नियमित रोस्टरिंग' : 'Scheduled Rostering')
@@ -78,15 +80,18 @@ export const ActionModal: React.FC<ActionModalProps> = ({
     const hh = d.getHours().toString().padStart(2, '0');
     const mm = d.getMinutes().toString().padStart(2, '0');
     setTimeString(`${hh}:${mm}`);
+    setIsManualTimeChanged(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalReason = customRemark.trim() ? `${selectedReason} - ${customRemark.trim()}` : selectedReason;
     
-    // Construct ISO string from selected time for today
+    // Default to exact current timestamp (starts timer at 00:00:00)
     let operationIso = new Date().toISOString();
-    if (timeString && timeString.includes(':')) {
+
+    // Only backdate if the operator manually changed the time
+    if (isManualTimeChanged && timeString && timeString.includes(':')) {
       const [h, m] = timeString.split(':').map(Number);
       const targetDate = new Date();
       targetDate.setHours(h, m, 0, 0);
@@ -150,7 +155,10 @@ export const ActionModal: React.FC<ActionModalProps> = ({
                 type="time"
                 required
                 value={timeString}
-                onChange={(e) => setTimeString(e.target.value)}
+                onChange={(e) => {
+                  setTimeString(e.target.value);
+                  setIsManualTimeChanged(true);
+                }}
                 className="bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-2 text-base font-mono-scada font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
               />
               <span className="text-xs text-slate-400">
