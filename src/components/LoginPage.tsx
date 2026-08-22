@@ -9,8 +9,7 @@ import {
   EyeOff, 
   LogIn, 
   AlertCircle,
-  Shield,
-  ChevronRight
+  Shield
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -40,17 +39,10 @@ export const LoginPage: React.FC = () => {
     setTimeout(() => {
       const success = login(userId.trim().toLowerCase(), pin.trim());
       if (!success) {
-        setErrorMsg('अमान्य आईडी या पिन! आपकी आईडी व्हाइटलिस्टेड सूची में नहीं है या पासवर्ड गलत है।');
+        setErrorMsg('अमान्य आईडी या पिन! आपकी आईडी अधिकृत सूची में नहीं है या पासवर्ड गलत है।');
         setIsSubmitting(false);
       }
     }, 400);
-  };
-
-  const handleQuickLogin = (id: string, quickPin: string) => {
-    setUserId(id);
-    setPin(quickPin);
-    setErrorMsg(null);
-    login(id, quickPin);
   };
 
   return (
@@ -163,48 +155,14 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Demo Access Pills */}
-          <div className="pt-4 border-t border-slate-800/80 space-y-2">
-            <span className="text-[11px] font-semibold text-slate-400 block text-center">
-              त्वरित डेमो टेस्ट लॉगिन (Quick Login):
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('sso1', '1234')}
-                className="p-2.5 bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/50 rounded-xl text-left transition group flex flex-col"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-400">ऑपरेटर (SSO)</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-amber-400" />
-                </div>
-                <span className="text-[10px] text-slate-400 mt-0.5">आईडी: <strong className="text-slate-300">sso1</strong> (पिन: 1234)</span>
-                <span className="text-[9px] text-emerald-400 font-semibold mt-1">✓ ऑन/ऑफ व लोड एडिट एक्सेस</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('xen', '5678')}
-                className="p-2.5 bg-slate-950/80 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-left transition group flex flex-col"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-cyan-400">अधिकारी (XEN)</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400" />
-                </div>
-                <span className="text-[10px] text-slate-400 mt-0.5">आईडी: <strong className="text-slate-300">xen</strong> (पिन: 5678)</span>
-                <span className="text-[9px] text-indigo-300 font-semibold mt-1">👁️ केवल लाइव मॉनिटर (View Only)</span>
-              </button>
-            </div>
-          </div>
-
           {/* Role Access Guidance */}
-          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-[11px] space-y-1 text-slate-400">
+          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-[11px] space-y-1.5 text-slate-400">
             <div className="flex items-center space-x-1.5 text-slate-300 font-semibold">
               <Shield className="w-3.5 h-3.5 text-amber-400" />
               <span>रोल आधारित अनुमतियाँ (Role Permissions):</span>
             </div>
-            <p>• <strong>ऑपरेटर (Operator):</strong> फीडर ऑन/ऑफ स्विच, घंटेवार RYB लोड एंट्री, ट्रिपिंग सिमुलेशन।</p>
-            <p>• <strong>अधिकारी (Officer/Viewer):</strong> लाइव लोड मॉनिटरिंग, SLD डायग्राम, 24 घंटे का रजिस्टर व Excel डाउनलोड (नियंत्रण बटन लॉक रहेंगे)।</p>
+            <p>• <strong>ऑपरेटर (Operator - IDs: 1011, 1012, 1013, 1014):</strong> फीडर ऑन/ऑफ स्विच, घंटेवार RYB लोड सबमिट, रिले ट्रिपिंग।</p>
+            <p>• <strong>अधिकारी (View Access - IDs: 1021, 1022):</strong> लाइव लोड मॉनिटरिंग, SLD डायग्राम, 24h रजिस्टर व Excel रिपोर्ट डाउनलोड (नियंत्रण सुरक्षित रूप से लॉक रहेगा)।</p>
           </div>
 
         </div>

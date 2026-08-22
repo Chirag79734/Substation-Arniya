@@ -1,5 +1,5 @@
 export interface AuthorizedUser {
-  id: string;          // User Login ID (e.g. 'sso1', 'xen', 'aen', 'operator1')
+  id: string;          // User Login ID (e.g. '1011', '1021')
   name: string;        // Full Name in Hindi
   nameEn: string;      // Full Name in English
   designation: string; // Designation
@@ -9,64 +9,58 @@ export interface AuthorizedUser {
 }
 
 /**
- * 🔒 WHITELISTED USERS LIST (अधिकृत उपयोगकर्ताओं की सूची)
- * नई आईडी जोड़ने या पासवर्ड बदलने के लिए इस लिस्ट में नया रिकॉर्ड जोड़ें या एडिट करें।
+ * 🔒 OFFICIAL WHITELISTED USERS LIST (सबस्टेशन अरनिया अधिकृत यूज़र्स)
  */
 export const INITIAL_WHITELISTED_USERS: AuthorizedUser[] = [
+  // ==================== OPERATORS (EDIT / CONTROL ACCESS) ====================
   {
-    id: 'sso1',
-    name: 'रमेश कुमार (SSO)',
-    nameEn: 'Ramesh Kumar (SSO)',
-    designation: 'सबस्टेशन ऑपरेटर (SSO - Shift A)',
+    id: '1011',
+    name: 'रवि बंसल (SSO)',
+    nameEn: 'Ravi Bansal (SSO)',
+    designation: 'सबस्टेशन ऑपरेटर (SSO)',
     pin: '1234',
     role: 'operator'
   },
   {
-    id: 'sso2',
-    name: 'दिनेश शर्मा (SSO)',
-    nameEn: 'Dinesh Sharma (SSO)',
-    designation: 'सबस्टेशन ऑपरेटर (SSO - Shift B)',
+    id: '1012',
+    name: 'अवधेश (SSO)',
+    nameEn: 'Avdhesh (SSO)',
+    designation: 'सबस्टेशन ऑपरेटर (SSO)',
     pin: '1234',
     role: 'operator'
   },
   {
-    id: 'sso3',
-    name: 'सुरेश वर्मा (SSO)',
-    nameEn: 'Suresh Verma (SSO)',
-    designation: 'सबस्टेशन ऑपरेटर (SSO - Shift C)',
+    id: '1013',
+    name: 'देवेन्द्र (SSO)',
+    nameEn: 'Devendra (SSO)',
+    designation: 'सबस्टेशन ऑपरेटर (SSO)',
     pin: '1234',
     role: 'operator'
   },
   {
-    id: 'xen',
-    name: 'इरफान खान (XEN)',
-    nameEn: 'Irfan Khan (XEN)',
-    designation: 'अधिशासी अभियंता (Executive Engineer)',
+    id: '1014',
+    name: 'जितेन्द्र (SSO)',
+    nameEn: 'Jitendra (SSO)',
+    designation: 'सबस्टेशन ऑपरेटर (SSO)',
+    pin: '1234',
+    role: 'operator'
+  },
+
+  // ==================== VIEW ACCESS (OFFICERS / READ ONLY) ====================
+  {
+    id: '1021',
+    name: 'SDO (संतोष त्रिपाठी)',
+    nameEn: 'SDO (Santosh Tripathi)',
+    designation: 'उपमंडल अधिकारी (Sub Divisional Officer)',
     pin: '5678',
     role: 'officer'
   },
   {
-    id: 'aen',
-    name: 'सुनील शर्मा (AEN)',
-    nameEn: 'Sunil Sharma (AEN)',
-    designation: 'सहायक अभियंता (Assistant Engineer)',
-    pin: '5678',
-    role: 'officer'
-  },
-  {
-    id: 'jen',
-    name: 'विकास गुप्ता (JEN)',
-    nameEn: 'Vikas Gupta (JEN)',
+    id: '1022',
+    name: 'JE (दिलेराम)',
+    nameEn: 'JE (Dileram)',
     designation: 'कनिष्ठ अभियंता (Junior Engineer)',
     pin: '5678',
     role: 'officer'
-  },
-  {
-    id: 'admin',
-    name: 'सबस्टेशन इंचार्ज (Admin)',
-    nameEn: 'Substation In-Charge (Admin)',
-    designation: 'सिस्टम एडमिनिस्ट्रेटर',
-    pin: '9999',
-    role: 'admin'
   }
 ];
