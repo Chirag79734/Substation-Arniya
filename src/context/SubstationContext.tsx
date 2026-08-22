@@ -3,13 +3,11 @@ import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationSt
 import { INITIAL_INCOMERS, INITIAL_FEEDERS, INITIAL_LOGS } from '../data/initialData';
 import { 
   initFirebase, 
-  getSavedFirebaseConfig, 
-  saveFirebaseConfig, 
-  clearFirebaseConfig, 
+  DEFAULT_FIREBASE_CONFIG,
   FirebaseConfigType,
   syncStateToCloud
 } from '../services/firebase';
-import { ref, onValue, set } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 
 interface SubstationContextType {
   incomers: Incomer[];
@@ -39,13 +37,6 @@ interface SubstationContextType {
 }
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
-
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v7';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v7';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v7';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v7';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v7';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v7';
 
 function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
   if (!incomingList || !Array.isArray(incomingList)) return INITIAL_FEEDERS;
@@ -107,43 +98,20 @@ function normalizeIncomers(incomingList: Incomer[]): Incomer[] {
 export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [now, setNow] = useState<Date>(new Date());
   
-  const [firebaseConfig, setFirebaseConfigState] = useState<FirebaseConfigType | null>(() => getSavedFirebaseConfig());
-  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
 
-  const [incomers, setIncomers] = useState<Incomer[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_INCOMERS);
-    return saved ? normalizeIncomers(JSON.parse(saved)) : INITIAL_INCOMERS;
-  });
+  const [incomers, setIncomers] = useState<Incomer[]>(INITIAL_INCOMERS);
+  const [feeders, setFeeders] = useState<Feeder[]>(INITIAL_FEEDERS);
+  const [logs, setLogs] = useState<FeederLog[]>(INITIAL_LOGS);
 
-  const [feeders, setFeeders] = useState<Feeder[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_FEEDERS);
-    return saved ? normalizeFeeders(JSON.parse(saved)) : INITIAL_FEEDERS;
-  });
-
-  const [logs, setLogs] = useState<FeederLog[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_LOGS);
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
-  });
-
-  const [role, setRoleState] = useState<UserRole>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_ROLE) as UserRole;
-    return saved || 'operator';
-  });
-
-  const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_LANG) as Language;
-    return saved || 'hi';
-  });
-
-  const [operatorName, setOperatorNameState] = useState<string>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_OPERATOR);
-    return saved || 'रमेश कुमार (SSO)';
-  });
-
+  const [role, setRole] = useState<UserRole>('operator');
+  const [language, setLanguage] = useState<Language>('hi');
+  const [operatorName, setOperatorName] = useState<string>('रमेश कुमार (SSO)');
   const [activeTab, setActiveTab] = useState<string>('overview');
 
+  // Clock tick
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(new Date());
@@ -151,310 +119,236 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => clearInterval(interval);
   }, []);
 
-  // Dedicated Firebase Realtime Database Stream Listener
+  // Dedicated Live Realtime Database Listener
   useEffect(() => {
-    if (!firebaseConfig) {
-      setIsFirebaseConnected(false);
-      return;
-    }
-
-    const { realtimeDb } = initFirebase(firebaseConfig);
-    if (!realtimeDb) {
-      setIsFirebaseConnected(false);
-      return;
-    }
-
-    const handleLivePayload = (payload: any) => {
-      if (!payload) return;
-      setIsFirebaseConnected(true);
-      setCloudSyncError(null);
-      setLastCloudSyncTime(new Date().toLocaleTimeString('en-IN'));
-
-      if (payload.feeders && Array.isArray(payload.feeders)) {
-        setFeeders(normalizeFeeders(payload.feeders));
-      }
-      if (payload.incomers && Array.isArray(payload.incomers)) {
-        setIncomers(normalizeIncomers(payload.incomers));
-      }
-      if (payload.logs && Array.isArray(payload.logs)) {
-        setLogs(payload.logs);
-      }
-    };
-
-    let unsubRTDB: (() => void) | null = null;
-
+    let unsub: (() => void) | null = null;
     try {
-      const rtdbRef = ref(realtimeDb, 'substation_arniya/live_state');
-      unsubRTDB = onValue(rtdbRef, (snapshot) => {
+      const { realtimeDb } = initFirebase();
+      const liveRef = ref(realtimeDb, 'substation_arniya/live_state');
+
+      unsub = onValue(liveRef, (snapshot) => {
         const val = snapshot.val();
         if (val) {
-          handleLivePayload(val);
+          setIsFirebaseConnected(true);
+          setCloudSyncError(null);
+          setLastCloudSyncTime(new Date().toLocaleTimeString('en-IN'));
+
+          if (val.feeders && Array.isArray(val.feeders)) {
+            setFeeders(normalizeFeeders(val.feeders));
+          }
+          if (val.incomers && Array.isArray(val.incomers)) {
+            setIncomers(normalizeIncomers(val.incomers));
+          }
+          if (val.logs && Array.isArray(val.logs)) {
+            setLogs(val.logs);
+          }
         } else {
-          // Initialize DB immediately
-          set(rtdbRef, {
+          // Push initial data
+          syncStateToCloud({
             feeders: INITIAL_FEEDERS,
             incomers: INITIAL_INCOMERS,
             logs: INITIAL_LOGS,
             updatedAt: new Date().toISOString(),
-            updatedBy: 'System Auto-Init'
+            updatedBy: 'System Init'
           });
-          setIsFirebaseConnected(true);
         }
       }, (err) => {
-        console.error('Firebase RTDB subscription error:', err);
+        console.error('Realtime Database listener error:', err);
         setCloudSyncError(err.message);
       });
     } catch (e: any) {
-      console.error('RTDB connection error:', e);
+      console.error('Firebase init error:', e);
       setCloudSyncError(e?.message || 'Connection error');
     }
 
     return () => {
-      if (unsubRTDB) unsubRTDB();
+      if (unsub) unsub();
     };
-  }, [firebaseConfig]);
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_FEEDERS, JSON.stringify(feeders));
-  }, [feeders]);
+  const updateFirebaseConfig = () => {};
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_INCOMERS, JSON.stringify(incomers));
-  }, [incomers]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
-  }, [logs]);
-
-  const updateFirebaseConfig = (config: FirebaseConfigType | null) => {
-    if (config) {
-      saveFirebaseConfig(config);
-      setFirebaseConfigState(config);
-    } else {
-      clearFirebaseConfig();
-      setFirebaseConfigState(null);
-      setIsFirebaseConnected(false);
-    }
-  };
-
-  const setRole = (newRole: UserRole) => {
-    setRoleState(newRole);
-    localStorage.setItem(STORAGE_KEY_ROLE, newRole);
-  };
-
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY_LANG, lang);
-  };
-
-  const setOperatorName = (name: string) => {
-    setOperatorNameState(name);
-    localStorage.setItem(STORAGE_KEY_OPERATOR, name);
-  };
-
-  const toggleFeeder = (feederId: string, reason?: string, customOperator?: string) => {
+  const toggleFeeder = async (feederId: string, reason?: string, customOperator?: string) => {
     const op = customOperator || operatorName;
     const currentTime = new Date().toISOString();
 
-    setFeeders(prevFeeders => {
-      const nextFeeders: Feeder[] = prevFeeders.map(feeder => {
-        if (feeder.id !== feederId) return feeder;
+    const nextFeeders: Feeder[] = feeders.map(feeder => {
+      if (feeder.id !== feederId) return feeder;
 
-        const isCurrentlyOn = feeder.status === 'ON';
-        const nextStatus: FeederStatus = isCurrentlyOn ? 'OFF' : 'ON';
-        const previousStatus = feeder.status;
-        
-        const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
-        
-        let newUptime = feeder.totalUptimeSecondsToday;
-        let newDowntime = feeder.totalDowntimeSecondsToday;
+      const isCurrentlyOn = feeder.status === 'ON';
+      const nextStatus: FeederStatus = isCurrentlyOn ? 'OFF' : 'ON';
+      
+      const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
+      
+      let newUptime = feeder.totalUptimeSecondsToday;
+      let newDowntime = feeder.totalDowntimeSecondsToday;
 
-        if (isCurrentlyOn) {
-          newUptime += elapsedSec;
-        } else {
-          newDowntime += elapsedSec;
-        }
+      if (isCurrentlyOn) {
+        newUptime += elapsedSec;
+      } else {
+        newDowntime += elapsedSec;
+      }
 
-        const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
-        const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
-        const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
+      const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
+      const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
+      const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
 
-        const incomerObj = incomers.find(i => i.id === feeder.incomerId);
-        const newLog: FeederLog = {
-          id: `log-${Date.now()}`,
-          feederId: feeder.id,
-          feederName: feeder.name,
-          feederHindiName: feeder.hindiName,
-          incomerId: feeder.incomerId,
-          incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
-          previousStatus,
-          newStatus: nextStatus,
-          durationSecondsInPreviousState: elapsedSec,
-          timestamp: currentTime,
-          operatorName: op,
-          reason: reason || (nextStatus === 'ON' ? 'फीडर चार्ज / चालू किया गया' : 'फीडर बंद / शटडाउन')
-        };
+      return {
+        ...feeder,
+        status: nextStatus,
+        voltageKv: newVoltage,
+        currentAmp: newCurrent,
+        powerMw: newPower,
+        lastStatusChange: currentTime,
+        totalUptimeSecondsToday: newUptime,
+        totalDowntimeSecondsToday: newDowntime,
+        remarks: reason || (nextStatus === 'ON' ? 'सामान्य चालू' : 'मैन्युअल बंद')
+      };
+    });
 
-        setLogs(prevLogs => {
-          const updatedLogs = [newLog, ...prevLogs];
-          // Sync directly to Firebase Realtime Database
-          syncStateToCloud({
-            feeders: nextFeeders,
-            incomers,
-            logs: updatedLogs,
-            updatedAt: currentTime,
-            updatedBy: op
-          });
-          return updatedLogs;
-        });
+    const targetFeeder = nextFeeders.find(f => f.id === feederId)!;
+    const incomerObj = incomers.find(i => i.id === targetFeeder.incomerId);
+    const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(targetFeeder.lastStatusChange).getTime()) / 1000));
 
-        return {
-          ...feeder,
-          status: nextStatus,
-          voltageKv: newVoltage,
-          currentAmp: newCurrent,
-          powerMw: newPower,
-          lastStatusChange: currentTime,
-          totalUptimeSecondsToday: newUptime,
-          totalDowntimeSecondsToday: newDowntime,
-          remarks: reason || (nextStatus === 'ON' ? 'सामान्य चालू' : 'मैन्युअल बंद')
-        };
-      });
+    const newLog: FeederLog = {
+      id: `log-${Date.now()}`,
+      feederId: targetFeeder.id,
+      feederName: targetFeeder.name,
+      feederHindiName: targetFeeder.hindiName,
+      incomerId: targetFeeder.incomerId,
+      incomerName: incomerObj ? incomerObj.name : targetFeeder.incomerId,
+      previousStatus: targetFeeder.status === 'ON' ? 'OFF' : 'ON',
+      newStatus: targetFeeder.status,
+      durationSecondsInPreviousState: elapsedSec,
+      timestamp: currentTime,
+      operatorName: op,
+      reason: reason || (targetFeeder.status === 'ON' ? 'फीडर चार्ज / चालू किया गया' : 'फीडर बंद / शटडाउन')
+    };
 
-      syncStateToCloud({
-        feeders: nextFeeders,
-        incomers,
-        logs,
-        updatedAt: currentTime,
-        updatedBy: op
-      });
+    const nextLogs = [newLog, ...logs];
 
-      return nextFeeders;
+    // Update local immediately
+    setFeeders(nextFeeders);
+    setLogs(nextLogs);
+
+    // Push to Firebase Realtime Database
+    await syncStateToCloud({
+      feeders: nextFeeders,
+      incomers,
+      logs: nextLogs,
+      updatedAt: currentTime,
+      updatedBy: op
     });
   };
 
-  const tripFeeder = (feederId: string, reason?: string) => {
+  const tripFeeder = async (feederId: string, reason?: string) => {
     const currentTime = new Date().toISOString();
 
-    setFeeders(prevFeeders => {
-      const nextFeeders: Feeder[] = prevFeeders.map(feeder => {
-        if (feeder.id !== feederId) return feeder;
+    const nextFeeders: Feeder[] = feeders.map(feeder => {
+      if (feeder.id !== feederId) return feeder;
 
-        const previousStatus = feeder.status;
-        const nextStatus: FeederStatus = 'TRIPPED';
-        const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
-        
-        let newUptime = feeder.totalUptimeSecondsToday;
-        let newDowntime = feeder.totalDowntimeSecondsToday;
-        if (previousStatus === 'ON') {
-          newUptime += elapsedSec;
-        } else {
-          newDowntime += elapsedSec;
-        }
+      const previousStatus = feeder.status;
+      const nextStatus: FeederStatus = 'TRIPPED';
+      const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
+      
+      let newUptime = feeder.totalUptimeSecondsToday;
+      let newDowntime = feeder.totalDowntimeSecondsToday;
+      if (previousStatus === 'ON') {
+        newUptime += elapsedSec;
+      } else {
+        newDowntime += elapsedSec;
+      }
 
-        const incomerObj = incomers.find(i => i.id === feeder.incomerId);
-        const newLog: FeederLog = {
-          id: `log-${Date.now()}`,
-          feederId: feeder.id,
-          feederName: feeder.name,
-          feederHindiName: feeder.hindiName,
-          incomerId: feeder.incomerId,
-          incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
-          previousStatus,
-          newStatus: nextStatus,
-          durationSecondsInPreviousState: elapsedSec,
-          timestamp: currentTime,
-          operatorName: operatorName,
-          reason: reason || 'ओवरकरंट / अर्थ फॉल्ट रिले ट्रिप'
-        };
+      return {
+        ...feeder,
+        status: nextStatus,
+        voltageKv: 0,
+        currentAmp: 0,
+        powerMw: 0,
+        lastStatusChange: currentTime,
+        totalUptimeSecondsToday: newUptime,
+        totalDowntimeSecondsToday: newDowntime,
+        tripCountToday: feeder.tripCountToday + 1,
+        remarks: reason || 'प्रोटेक्शन रिले ट्रिप'
+      };
+    });
 
-        setLogs(prevLogs => {
-          const updatedLogs = [newLog, ...prevLogs];
-          syncStateToCloud({
-            feeders: nextFeeders,
-            incomers,
-            logs: updatedLogs,
-            updatedAt: currentTime,
-            updatedBy: operatorName
-          });
-          return updatedLogs;
-        });
+    const targetFeeder = nextFeeders.find(f => f.id === feederId)!;
+    const incomerObj = incomers.find(i => i.id === targetFeeder.incomerId);
+    const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(targetFeeder.lastStatusChange).getTime()) / 1000));
 
-        return {
-          ...feeder,
-          status: nextStatus,
-          voltageKv: 0,
-          currentAmp: 0,
-          powerMw: 0,
-          lastStatusChange: currentTime,
-          totalUptimeSecondsToday: newUptime,
-          totalDowntimeSecondsToday: newDowntime,
-          tripCountToday: feeder.tripCountToday + 1,
-          remarks: reason || 'प्रोटेक्शन रिले ट्रिप'
-        };
-      });
+    const newLog: FeederLog = {
+      id: `log-${Date.now()}`,
+      feederId: targetFeeder.id,
+      feederName: targetFeeder.name,
+      feederHindiName: targetFeeder.hindiName,
+      incomerId: targetFeeder.incomerId,
+      incomerName: incomerObj ? incomerObj.name : targetFeeder.incomerId,
+      previousStatus: 'ON',
+      newStatus: 'TRIPPED',
+      durationSecondsInPreviousState: elapsedSec,
+      timestamp: currentTime,
+      operatorName: operatorName,
+      reason: reason || 'ओवरकरंट / अर्थ फॉल्ट रिले ट्रिप'
+    };
 
-      syncStateToCloud({
-        feeders: nextFeeders,
-        incomers,
-        logs,
-        updatedAt: currentTime,
-        updatedBy: operatorName
-      });
+    const nextLogs = [newLog, ...logs];
 
-      return nextFeeders;
+    setFeeders(nextFeeders);
+    setLogs(nextLogs);
+
+    await syncStateToCloud({
+      feeders: nextFeeders,
+      incomers,
+      logs: nextLogs,
+      updatedAt: currentTime,
+      updatedBy: operatorName
     });
   };
 
-  const toggleIncomer = (incomerId: IncomerId) => {
+  const toggleIncomer = async (incomerId: IncomerId) => {
     const currentTime = new Date().toISOString();
-    setIncomers(prevIncomers => {
-      const nextIncomers: Incomer[] = prevIncomers.map(inc => {
-        if (inc.id !== incomerId) return inc;
-        const newStatus: 'ON' | 'OFF' = inc.status === 'ON' ? 'OFF' : 'ON';
-        return {
-          ...inc,
-          status: newStatus,
-          voltageKv: newStatus === 'ON' ? 33.1 : 0,
-          lastStatusChange: currentTime
-        };
-      });
+    const nextIncomers: Incomer[] = incomers.map(inc => {
+      if (inc.id !== incomerId) return inc;
+      const newStatus: 'ON' | 'OFF' = inc.status === 'ON' ? 'OFF' : 'ON';
+      return {
+        ...inc,
+        status: newStatus,
+        voltageKv: newStatus === 'ON' ? 33.1 : 0,
+        lastStatusChange: currentTime
+      };
+    });
 
-      syncStateToCloud({
-        feeders,
-        incomers: nextIncomers,
-        logs,
-        updatedAt: currentTime,
-        updatedBy: operatorName
-      });
+    setIncomers(nextIncomers);
 
-      return nextIncomers;
+    await syncStateToCloud({
+      feeders,
+      incomers: nextIncomers,
+      logs,
+      updatedAt: currentTime,
+      updatedBy: operatorName
     });
   };
 
-  const updateFeederRemark = (feederId: string, remark: string) => {
-    setFeeders(prevFeeders => {
-      const nextFeeders = prevFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
-      syncStateToCloud({
-        feeders: nextFeeders,
-        incomers,
-        logs,
-        updatedAt: new Date().toISOString(),
-        updatedBy: operatorName
-      });
-      return nextFeeders;
+  const updateFeederRemark = async (feederId: string, remark: string) => {
+    const nextFeeders = feeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
+    setFeeders(nextFeeders);
+
+    await syncStateToCloud({
+      feeders: nextFeeders,
+      incomers,
+      logs,
+      updatedAt: new Date().toISOString(),
+      updatedBy: operatorName
     });
   };
 
-  const resetAllData = () => {
+  const resetAllData = async () => {
     setFeeders(INITIAL_FEEDERS);
     setIncomers(INITIAL_INCOMERS);
     setLogs(INITIAL_LOGS);
-    localStorage.removeItem(STORAGE_KEY_FEEDERS);
-    localStorage.removeItem(STORAGE_KEY_INCOMERS);
-    localStorage.removeItem(STORAGE_KEY_LOGS);
 
-    syncStateToCloud({
+    await syncStateToCloud({
       feeders: INITIAL_FEEDERS,
       incomers: INITIAL_INCOMERS,
       logs: INITIAL_LOGS,
@@ -463,10 +357,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const clearLogs = () => {
+  const clearLogs = async () => {
     setLogs([]);
-    localStorage.removeItem(STORAGE_KEY_LOGS);
-    syncStateToCloud({
+    await syncStateToCloud({
       feeders,
       incomers,
       logs: [],
@@ -520,7 +413,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isFirebaseConnected,
         cloudSyncError,
         lastCloudSyncTime,
-        firebaseConfig,
+        firebaseConfig: DEFAULT_FIREBASE_CONFIG,
         setRole,
         setLanguage,
         setOperatorName,
