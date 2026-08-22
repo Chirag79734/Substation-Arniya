@@ -50,6 +50,33 @@ export interface FeederLog {
   reason?: string;
 }
 
+export interface FeederHourlyReading {
+  feederId: string;
+  feederName: string;
+  feederHindiName: string;
+  incomerId: IncomerId;
+  status: FeederStatus;
+  rAmp: number;
+  yAmp: number;
+  bAmp: number;
+  avgAmp: number;
+  voltageKv: number;
+  powerMw: number;
+}
+
+export interface HourlySubstationLog {
+  id: string;
+  date: string;
+  hour: number;
+  hourLabel: string;
+  recordedAt: string;
+  operatorName: string;
+  readings: Record<string, FeederHourlyReading>;
+  incomer1Mw?: number;
+  incomer2Mw?: number;
+  totalSubstationMw?: number;
+}
+
 export type UserRole = 'operator' | 'officer';
 export type Language = 'hi' | 'en';
 

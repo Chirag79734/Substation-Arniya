@@ -222,6 +222,7 @@ export const Header: React.FC = () => {
           <div className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
             {[
               { id: 'overview', labelHi: 'डैशबोर्ड ओवरव्यू', labelEn: 'Dashboard Overview', icon: Activity },
+              { id: 'hourly', labelHi: '📊 प्रति घंटा लोड शीट (R-Y-B)', labelEn: 'Hourly Load (R-Y-B)', icon: Clock },
               { id: 'diagram', labelHi: 'सिंगल लाइन डायग्राम (SLD)', labelEn: 'Single Line Diagram', icon: Zap },
               { id: 'logs', labelHi: 'इवेंट लॉगबुक', labelEn: 'Logbook & History', icon: FileText },
             ].map((tab) => {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationStats, FeederStatus } from '../types/substation';
+import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationStats, FeederStatus, HourlySubstationLog } from '../types/substation';
 import { INITIAL_INCOMERS, INITIAL_FEEDERS, INITIAL_LOGS } from '../data/initialData';
 import { 
   initFirebase, 
@@ -7,12 +7,13 @@ import {
   FirebaseConfigType,
   syncStateToCloud
 } from '../services/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 
 interface SubstationContextType {
   incomers: Incomer[];
   feeders: Feeder[];
   logs: FeederLog[];
+  hourlyLogs: Record<string, HourlySubstationLog>;
   role: UserRole;
   language: Language;
   operatorName: string;
@@ -32,6 +33,7 @@ interface SubstationContextType {
   tripFeeder: (feederId: string, reason?: string) => void;
   toggleIncomer: (incomerId: IncomerId) => void;
   updateFeederRemark: (feederId: string, remark: string) => void;
+  saveHourlyLog: (log: HourlySubstationLog) => Promise<void>;
   resetAllData: () => void;
   clearLogs: () => void;
 }
@@ -105,28 +107,29 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [incomers, setIncomers] = useState<Incomer[]>(INITIAL_INCOMERS);
   const [feeders, setFeeders] = useState<Feeder[]>(INITIAL_FEEDERS);
   const [logs, setLogs] = useState<FeederLog[]>(INITIAL_LOGS);
+  const [hourlyLogs, setHourlyLogs] = useState<Record<string, HourlySubstationLog>>({});
 
   const [role, setRole] = useState<UserRole>('operator');
   const [language, setLanguage] = useState<Language>('hi');
   const [operatorName, setOperatorName] = useState<string>('रमेश कुमार (SSO)');
   const [activeTab, setActiveTab] = useState<string>('overview');
 
-  // Clock tick
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
+    const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
   // Dedicated Live Realtime Database Listener
   useEffect(() => {
-    let unsub: (() => void) | null = null;
+    let unsubLive: (() => void) | null = null;
+    let unsubHourly: (() => void) | null = null;
+
     try {
       const { realtimeDb } = initFirebase();
-      const liveRef = ref(realtimeDb, 'substation_arniya/live_state');
 
-      unsub = onValue(liveRef, (snapshot) => {
+      // 1. Live state listener (Feeders, Incomers, Logs)
+      const liveRef = ref(realtimeDb, 'substation_arniya/live_state');
+      unsubLive = onValue(liveRef, (snapshot) => {
         const val = snapshot.val();
         if (val) {
           setIsFirebaseConnected(true);
@@ -142,19 +145,19 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (val.logs && Array.isArray(val.logs)) {
             setLogs(val.logs);
           }
-        } else {
-          // Push initial data
-          syncStateToCloud({
-            feeders: INITIAL_FEEDERS,
-            incomers: INITIAL_INCOMERS,
-            logs: INITIAL_LOGS,
-            updatedAt: new Date().toISOString(),
-            updatedBy: 'System Init'
-          });
         }
       }, (err) => {
         console.error('Realtime Database listener error:', err);
         setCloudSyncError(err.message);
+      });
+
+      // 2. Hourly load logs listener
+      const hourlyRef = ref(realtimeDb, 'substation_arniya/hourly_logs');
+      unsubHourly = onValue(hourlyRef, (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          setHourlyLogs(val);
+        }
       });
     } catch (e: any) {
       console.error('Firebase init error:', e);
@@ -162,11 +165,27 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     return () => {
-      if (unsub) unsub();
+      if (unsubLive) unsubLive();
+      if (unsubHourly) unsubHourly();
     };
   }, []);
 
   const updateFirebaseConfig = () => {};
+
+  const saveHourlyLog = async (newLog: HourlySubstationLog) => {
+    setHourlyLogs(prev => ({
+      ...prev,
+      [newLog.id]: newLog
+    }));
+
+    try {
+      const { realtimeDb } = initFirebase();
+      const logRef = ref(realtimeDb, `substation_arniya/hourly_logs/${newLog.id}`);
+      await set(logRef, newLog);
+    } catch (err) {
+      console.error('Failed to save hourly log to cloud:', err);
+    }
+  };
 
   const toggleFeeder = async (feederId: string, reason?: string, customOperator?: string) => {
     const op = customOperator || operatorName;
@@ -227,11 +246,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const nextLogs = [newLog, ...logs];
 
-    // Update local immediately
     setFeeders(nextFeeders);
     setLogs(nextLogs);
 
-    // Push to Firebase Realtime Database
     await syncStateToCloud({
       feeders: nextFeeders,
       incomers,
@@ -404,6 +421,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         incomers,
         feeders,
         logs,
+        hourlyLogs,
         role,
         language,
         operatorName,
@@ -423,6 +441,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         tripFeeder,
         toggleIncomer,
         updateFeederRemark,
+        saveHourlyLog,
         resetAllData,
         clearLogs
       }}

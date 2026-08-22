@@ -5,6 +5,7 @@ import { OverviewCards } from './components/OverviewCards';
 import { IncomerSection } from './components/IncomerSection';
 import { SingleLineDiagram } from './components/SingleLineDiagram';
 import { LogBook } from './components/LogBook';
+import { HourlyLoadSheet } from './components/HourlyLoadSheet';
 import { Zap, Radio } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -23,6 +24,13 @@ const DashboardContent: React.FC = () => {
               <IncomerSection incomerId="inc-1" />
               <IncomerSection incomerId="inc-2" />
             </div>
+          </div>
+        )}
+
+        {/* Hourly Load Sheet Tab */}
+        {activeTab === 'hourly' && (
+          <div>
+            <HourlyLoadSheet />
           </div>
         )}
 
