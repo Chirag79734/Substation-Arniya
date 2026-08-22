@@ -9,9 +9,7 @@ import {
   Radio, 
   Sliders, 
   FileText, 
-  BarChart3, 
   Activity, 
-  Layers,
   Cloud
 } from 'lucide-react';
 import { FirebaseModal } from './FirebaseModal';
@@ -192,11 +190,8 @@ export const Header: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800/80">
           <div className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
             {[
-              { id: 'overview', labelHi: 'डैशबोर्ड ओवरव्यू', labelEn: 'Overview', icon: Activity },
-              { id: 'incomer1', labelHi: 'इनकमिंग 1st (5 फीडर)', labelEn: 'Incoming 1st (5 Feeders)', icon: Layers },
-              { id: 'incomer2', labelHi: 'इनकमिंग 2nd (3 फीडर)', labelEn: 'Incoming 2nd (3 Feeders)', icon: Layers },
+              { id: 'overview', labelHi: 'डैशबोर्ड ओवरव्यू', labelEn: 'Dashboard Overview', icon: Activity },
               { id: 'diagram', labelHi: 'सिंगल लाइन डायग्राम (SLD)', labelEn: 'Single Line Diagram', icon: Zap },
-              { id: 'analytics', labelHi: 'विश्लेषण व रनटाइम', labelEn: 'Analytics & Uptime', icon: BarChart3 },
               { id: 'logs', labelHi: 'इवेंट लॉगबुक', labelEn: 'Logbook & History', icon: FileText },
             ].map((tab) => {
               const Icon = tab.icon;
