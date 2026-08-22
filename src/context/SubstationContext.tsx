@@ -37,25 +37,41 @@ interface SubstationContextType {
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
 
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v3';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v3';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v3';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v3';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v3';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v3';
+const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v4';
+const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v4';
+const STORAGE_KEY_LOGS = 'substation_arniya_logs_v4';
+const STORAGE_KEY_ROLE = 'substation_arniya_role_v4';
+const STORAGE_KEY_LANG = 'substation_arniya_lang_v4';
+const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v4';
 
-// Helper to normalize and ensure corrected names
+// Pure, strict ID-based normalizer with zero cross-contamination
 function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
-  return INITIAL_FEEDERS.map((initF, idx) => {
-    const existing = incomingList.find(f => f.id === initF.id || (idx < incomingList.length && incomingList[idx].incomerId === initF.incomerId && incomingList[idx].name.toLowerCase().includes(initF.name.slice(0,3).toLowerCase())));
+  if (!incomingList || !Array.isArray(incomingList)) return INITIAL_FEEDERS;
+  
+  const incomingMap = new Map<string, Feeder>();
+  incomingList.forEach(f => {
+    if (f && f.id) {
+      incomingMap.set(f.id, f);
+      if (f.id === 'f-kairola') incomingMap.set('f-kaherola', f);
+      if (f.id === 'f-dussehra') incomingMap.set('f-dashera', f);
+    }
+  });
+
+  return INITIAL_FEEDERS.map((initF) => {
+    const existing = incomingMap.get(initF.id);
     if (existing) {
       return {
-        ...existing,
-        id: initF.id,
-        name: initF.name,
-        hindiName: initF.hindiName,
-        category: initF.category,
-        incomerId: initF.incomerId
+        ...initF,
+        status: (existing.status === 'ON' || existing.status === 'OFF' || existing.status === 'TRIPPED' || existing.status === 'MAINTENANCE') ? existing.status : initF.status,
+        voltageKv: typeof existing.voltageKv === 'number' ? existing.voltageKv : initF.voltageKv,
+        currentAmp: typeof existing.currentAmp === 'number' ? existing.currentAmp : initF.currentAmp,
+        powerMw: typeof existing.powerMw === 'number' ? existing.powerMw : initF.powerMw,
+        powerFactor: typeof existing.powerFactor === 'number' ? existing.powerFactor : initF.powerFactor,
+        lastStatusChange: existing.lastStatusChange || initF.lastStatusChange,
+        totalUptimeSecondsToday: typeof existing.totalUptimeSecondsToday === 'number' ? existing.totalUptimeSecondsToday : initF.totalUptimeSecondsToday,
+        totalDowntimeSecondsToday: typeof existing.totalDowntimeSecondsToday === 'number' ? existing.totalDowntimeSecondsToday : initF.totalDowntimeSecondsToday,
+        tripCountToday: typeof existing.tripCountToday === 'number' ? existing.tripCountToday : initF.tripCountToday,
+        remarks: existing.remarks || initF.remarks
       };
     }
     return initF;
@@ -63,13 +79,23 @@ function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
 }
 
 function normalizeIncomers(incomingList: Incomer[]): Incomer[] {
+  if (!incomingList || !Array.isArray(incomingList)) return INITIAL_INCOMERS;
+  const incomingMap = new Map<string, Incomer>();
+  incomingList.forEach(i => {
+    if (i && i.id) incomingMap.set(i.id, i);
+  });
+
   return INITIAL_INCOMERS.map((initInc) => {
-    const existing = incomingList.find(i => i.id === initInc.id);
+    const existing = incomingMap.get(initInc.id);
     if (existing) {
       return {
-        ...existing,
-        name: initInc.name,
-        hindiName: initInc.hindiName
+        ...initInc,
+        status: existing.status || initInc.status,
+        voltageKv: typeof existing.voltageKv === 'number' ? existing.voltageKv : initInc.voltageKv,
+        currentAmp: typeof existing.currentAmp === 'number' ? existing.currentAmp : initInc.currentAmp,
+        oilTempC: typeof existing.oilTempC === 'number' ? existing.oilTempC : initInc.oilTempC,
+        windingTempC: typeof existing.windingTempC === 'number' ? existing.windingTempC : initInc.windingTempC,
+        lastStatusChange: existing.lastStatusChange || initInc.lastStatusChange
       };
     }
     return initInc;
@@ -142,8 +168,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubFeeders = onValue(feedersRef, (snapshot) => {
       const val = snapshot.val();
       if (val && Array.isArray(val) && val.length > 0) {
-        const normalized = normalizeFeeders(val);
-        setFeeders(normalized);
+        setFeeders(normalizeFeeders(val));
       } else if (!val) {
         set(feedersRef, INITIAL_FEEDERS);
       }
@@ -153,8 +178,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubIncomers = onValue(incomersRef, (snapshot) => {
       const val = snapshot.val();
       if (val && Array.isArray(val) && val.length > 0) {
-        const normalized = normalizeIncomers(val);
-        setIncomers(normalized);
+        setIncomers(normalizeIncomers(val));
       } else if (!val) {
         set(incomersRef, INITIAL_INCOMERS);
       }
@@ -219,159 +243,166 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const op = customOperator || operatorName;
     const currentTime = new Date().toISOString();
 
-    const nextFeeders: Feeder[] = feeders.map(feeder => {
-      if (feeder.id !== feederId) return feeder;
+    setFeeders(prevFeeders => {
+      const nextFeeders: Feeder[] = prevFeeders.map(feeder => {
+        if (feeder.id !== feederId) return feeder;
 
-      const isCurrentlyOn = feeder.status === 'ON';
-      const nextStatus: FeederStatus = isCurrentlyOn ? 'OFF' : 'ON';
-      const previousStatus = feeder.status;
-      
-      const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
-      
-      let newUptime = feeder.totalUptimeSecondsToday;
-      let newDowntime = feeder.totalDowntimeSecondsToday;
+        const isCurrentlyOn = feeder.status === 'ON';
+        const nextStatus: FeederStatus = isCurrentlyOn ? 'OFF' : 'ON';
+        const previousStatus = feeder.status;
+        
+        const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
+        
+        let newUptime = feeder.totalUptimeSecondsToday;
+        let newDowntime = feeder.totalDowntimeSecondsToday;
 
-      if (isCurrentlyOn) {
-        newUptime += elapsedSec;
-      } else {
-        newDowntime += elapsedSec;
-      }
+        if (isCurrentlyOn) {
+          newUptime += elapsedSec;
+        } else {
+          newDowntime += elapsedSec;
+        }
 
-      const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
-      const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
-      const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
+        const newVoltage = nextStatus === 'ON' ? +(11.1 + Math.random() * 0.3).toFixed(2) : 0;
+        const newCurrent = nextStatus === 'ON' ? Math.floor(60 + Math.random() * 60) : 0;
+        const newPower = nextStatus === 'ON' ? +(newCurrent * 11.2 * 1.732 * 0.92 / 1000).toFixed(2) : 0;
 
-      const incomerObj = incomers.find(i => i.id === feeder.incomerId);
-      const newLog: FeederLog = {
-        id: `log-${Date.now()}`,
-        feederId: feeder.id,
-        feederName: feeder.name,
-        feederHindiName: feeder.hindiName,
-        incomerId: feeder.incomerId,
-        incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
-        previousStatus,
-        newStatus: nextStatus,
-        durationSecondsInPreviousState: elapsedSec,
-        timestamp: currentTime,
-        operatorName: op,
-        reason: reason || (nextStatus === 'ON' ? 'फीडर चार्ज / चालू किया गया' : 'फीडर बंद / शटडाउन')
-      };
+        const incomerObj = incomers.find(i => i.id === feeder.incomerId);
+        const newLog: FeederLog = {
+          id: `log-${Date.now()}`,
+          feederId: feeder.id,
+          feederName: feeder.name,
+          feederHindiName: feeder.hindiName,
+          incomerId: feeder.incomerId,
+          incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
+          previousStatus,
+          newStatus: nextStatus,
+          durationSecondsInPreviousState: elapsedSec,
+          timestamp: currentTime,
+          operatorName: op,
+          reason: reason || (nextStatus === 'ON' ? 'फीडर चार्ज / चालू किया गया' : 'फीडर बंद / शटडाउन')
+        };
 
-      const updatedLogs = [newLog, ...logs];
-      setLogs(updatedLogs);
+        setLogs(prevLogs => {
+          const updatedLogs = [newLog, ...prevLogs];
+          if (dbRef.current) {
+            set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
+          }
+          return updatedLogs;
+        });
+
+        return {
+          ...feeder,
+          status: nextStatus,
+          voltageKv: newVoltage,
+          currentAmp: newCurrent,
+          powerMw: newPower,
+          lastStatusChange: currentTime,
+          totalUptimeSecondsToday: newUptime,
+          totalDowntimeSecondsToday: newDowntime,
+          remarks: reason || (nextStatus === 'ON' ? 'सामान्य चालू' : 'मैन्युअल बंद')
+        };
+      });
 
       if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
+        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
       }
-
-      return {
-        ...feeder,
-        status: nextStatus,
-        voltageKv: newVoltage,
-        currentAmp: newCurrent,
-        powerMw: newPower,
-        lastStatusChange: currentTime,
-        totalUptimeSecondsToday: newUptime,
-        totalDowntimeSecondsToday: newDowntime,
-        remarks: reason || (nextStatus === 'ON' ? 'सामान्य चालू' : 'मैन्युअल बंद')
-      };
+      return nextFeeders;
     });
-
-    setFeeders(nextFeeders);
-
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-    }
   };
 
   const tripFeeder = (feederId: string, reason?: string) => {
     const currentTime = new Date().toISOString();
 
-    const nextFeeders: Feeder[] = feeders.map(feeder => {
-      if (feeder.id !== feederId) return feeder;
+    setFeeders(prevFeeders => {
+      const nextFeeders: Feeder[] = prevFeeders.map(feeder => {
+        if (feeder.id !== feederId) return feeder;
 
-      const previousStatus = feeder.status;
-      const nextStatus: FeederStatus = 'TRIPPED';
-      const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
-      
-      let newUptime = feeder.totalUptimeSecondsToday;
-      let newDowntime = feeder.totalDowntimeSecondsToday;
-      if (previousStatus === 'ON') {
-        newUptime += elapsedSec;
-      } else {
-        newDowntime += elapsedSec;
-      }
+        const previousStatus = feeder.status;
+        const nextStatus: FeederStatus = 'TRIPPED';
+        const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
+        
+        let newUptime = feeder.totalUptimeSecondsToday;
+        let newDowntime = feeder.totalDowntimeSecondsToday;
+        if (previousStatus === 'ON') {
+          newUptime += elapsedSec;
+        } else {
+          newDowntime += elapsedSec;
+        }
 
-      const incomerObj = incomers.find(i => i.id === feeder.incomerId);
-      const newLog: FeederLog = {
-        id: `log-${Date.now()}`,
-        feederId: feeder.id,
-        feederName: feeder.name,
-        feederHindiName: feeder.hindiName,
-        incomerId: feeder.incomerId,
-        incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
-        previousStatus,
-        newStatus: nextStatus,
-        durationSecondsInPreviousState: elapsedSec,
-        timestamp: currentTime,
-        operatorName: operatorName,
-        reason: reason || 'ओवरकरंट / अर्थ फॉल्ट रिले ट्रिप'
-      };
+        const incomerObj = incomers.find(i => i.id === feeder.incomerId);
+        const newLog: FeederLog = {
+          id: `log-${Date.now()}`,
+          feederId: feeder.id,
+          feederName: feeder.name,
+          feederHindiName: feeder.hindiName,
+          incomerId: feeder.incomerId,
+          incomerName: incomerObj ? incomerObj.name : feeder.incomerId,
+          previousStatus,
+          newStatus: nextStatus,
+          durationSecondsInPreviousState: elapsedSec,
+          timestamp: currentTime,
+          operatorName: operatorName,
+          reason: reason || 'ओवरकरंट / अर्थ फॉल्ट रिले ट्रिप'
+        };
 
-      const updatedLogs = [newLog, ...logs];
-      setLogs(updatedLogs);
+        setLogs(prevLogs => {
+          const updatedLogs = [newLog, ...prevLogs];
+          if (dbRef.current) {
+            set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
+          }
+          return updatedLogs;
+        });
+
+        return {
+          ...feeder,
+          status: nextStatus,
+          voltageKv: 0,
+          currentAmp: 0,
+          powerMw: 0,
+          lastStatusChange: currentTime,
+          totalUptimeSecondsToday: newUptime,
+          totalDowntimeSecondsToday: newDowntime,
+          tripCountToday: feeder.tripCountToday + 1,
+          remarks: reason || 'प्रोटेक्शन रिले ट्रिप'
+        };
+      });
 
       if (dbRef.current) {
-        set(ref(dbRef.current, 'substation_arniya/logs'), updatedLogs);
+        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
       }
-
-      return {
-        ...feeder,
-        status: nextStatus,
-        voltageKv: 0,
-        currentAmp: 0,
-        powerMw: 0,
-        lastStatusChange: currentTime,
-        totalUptimeSecondsToday: newUptime,
-        totalDowntimeSecondsToday: newDowntime,
-        tripCountToday: feeder.tripCountToday + 1,
-        remarks: reason || 'प्रोटेक्शन रिले ट्रिप'
-      };
+      return nextFeeders;
     });
-
-    setFeeders(nextFeeders);
-
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-    }
   };
 
   const toggleIncomer = (incomerId: IncomerId) => {
     const currentTime = new Date().toISOString();
-    const nextIncomers: Incomer[] = incomers.map(inc => {
-      if (inc.id !== incomerId) return inc;
-      const newStatus: 'ON' | 'OFF' = inc.status === 'ON' ? 'OFF' : 'ON';
-      return {
-        ...inc,
-        status: newStatus,
-        voltageKv: newStatus === 'ON' ? 33.1 : 0,
-        lastStatusChange: currentTime
-      };
+    setIncomers(prevIncomers => {
+      const nextIncomers: Incomer[] = prevIncomers.map(inc => {
+        if (inc.id !== incomerId) return inc;
+        const newStatus: 'ON' | 'OFF' = inc.status === 'ON' ? 'OFF' : 'ON';
+        return {
+          ...inc,
+          status: newStatus,
+          voltageKv: newStatus === 'ON' ? 33.1 : 0,
+          lastStatusChange: currentTime
+        };
+      });
+
+      if (dbRef.current) {
+        set(ref(dbRef.current, 'substation_arniya/incomers'), nextIncomers);
+      }
+      return nextIncomers;
     });
-
-    setIncomers(nextIncomers);
-
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/incomers'), nextIncomers);
-    }
   };
 
   const updateFeederRemark = (feederId: string, remark: string) => {
-    const nextFeeders = feeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
-    setFeeders(nextFeeders);
-    if (dbRef.current) {
-      set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
-    }
+    setFeeders(prevFeeders => {
+      const nextFeeders = prevFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
+      if (dbRef.current) {
+        set(ref(dbRef.current, 'substation_arniya/feeders'), nextFeeders);
+      }
+      return nextFeeders;
+    });
   };
 
   const resetAllData = () => {
