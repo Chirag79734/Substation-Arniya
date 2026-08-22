@@ -10,7 +10,7 @@ import {
   syncStateToCloud
 } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 
 interface SubstationContextType {
   incomers: Incomer[];
@@ -41,12 +41,12 @@ interface SubstationContextType {
 
 const SubstationContext = createContext<SubstationContextType | undefined>(undefined);
 
-const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v5';
-const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v5';
-const STORAGE_KEY_LOGS = 'substation_arniya_logs_v5';
-const STORAGE_KEY_ROLE = 'substation_arniya_role_v5';
-const STORAGE_KEY_LANG = 'substation_arniya_lang_v5';
-const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v5';
+const STORAGE_KEY_FEEDERS = 'substation_arniya_feeders_v6';
+const STORAGE_KEY_INCOMERS = 'substation_arniya_incomers_v6';
+const STORAGE_KEY_LOGS = 'substation_arniya_logs_v6';
+const STORAGE_KEY_ROLE = 'substation_arniya_role_v6';
+const STORAGE_KEY_LANG = 'substation_arniya_lang_v6';
+const STORAGE_KEY_OPERATOR = 'substation_arniya_operator_v6';
 
 function normalizeFeeders(incomingList: Feeder[]): Feeder[] {
   if (!incomingList || !Array.isArray(incomingList)) return INITIAL_FEEDERS;
@@ -152,6 +152,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => clearInterval(interval);
   }, []);
 
+  // Realtime Cloud Listener
   useEffect(() => {
     if (!firebaseConfig) {
       setIsFirebaseConnected(false);
@@ -180,33 +181,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     let unsubFirestore: (() => void) | null = null;
     let unsubRTDB: (() => void) | null = null;
 
-    if (firestoreDb) {
-      try {
-        const docRef = doc(firestoreDb, 'substation_arniya', 'live_state');
-        unsubFirestore = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            handleLivePayload(docSnap.data());
-          } else {
-            syncStateToCloud({
-              feeders: INITIAL_FEEDERS,
-              incomers: INITIAL_INCOMERS,
-              logs: INITIAL_LOGS,
-              updatedAt: new Date().toISOString(),
-              updatedBy: 'Initial Setup'
-            });
-            setIsFirebaseConnected(true);
-          }
-        }, (err) => {
-          console.warn('Firestore listener note:', err.message);
-          if (err.message.includes('permission-denied') || err.message.includes('insufficient permissions')) {
-            setCloudSyncError('Firebase Rules Locked: Please open Firebase Console -> Build -> Firestore/Database -> Set Rules to test mode.');
-          }
-        });
-      } catch (e) {
-        console.warn('Firestore onSnapshot init error', e);
-      }
-    }
-
+    // Realtime Database Listener
     if (realtimeDb) {
       try {
         const rtdbRef = ref(realtimeDb, 'substation_arniya/live_state');
@@ -214,13 +189,38 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const val = snapshot.val();
           if (val) {
             handleLivePayload(val);
+          } else {
+            // Seed RTDB immediately on first connect
+            set(rtdbRef, {
+              feeders: INITIAL_FEEDERS,
+              incomers: INITIAL_INCOMERS,
+              logs: INITIAL_LOGS,
+              updatedAt: new Date().toISOString(),
+              updatedBy: 'System Auto-Init'
+            });
+            setIsFirebaseConnected(true);
           }
         }, (err) => {
           console.warn('RTDB listener note:', err.message);
+          if (err.message.includes('Permission denied')) {
+            setCloudSyncError('Firebase RTDB Rules: Go to Firebase -> Realtime Database -> Rules -> Set ".read": true, ".write": true');
+          }
         });
       } catch (e) {
         console.warn('RTDB onValue init error', e);
       }
+    }
+
+    // Firestore Listener
+    if (firestoreDb) {
+      try {
+        const docRef = doc(firestoreDb, 'substation_arniya', 'live_state');
+        unsubFirestore = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            handleLivePayload(docSnap.data());
+          }
+        }, () => {});
+      } catch (e) {}
     }
 
     return () => {
