@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Incomer, Feeder, FeederLog, UserRole, Language, IncomerId, SubstationStats, FeederStatus, HourlySubstationLog } from '../types/substation';
 import { INITIAL_INCOMERS, INITIAL_FEEDERS, INITIAL_LOGS } from '../data/initialData';
+import { AuthorizedUser, INITIAL_WHITELISTED_USERS } from '../data/authorizedUsers';
 import { 
   initFirebase, 
   DEFAULT_FIREBASE_CONFIG,
@@ -10,6 +11,8 @@ import {
 import { ref, onValue, set } from 'firebase/database';
 
 interface SubstationContextType {
+  currentUser: AuthorizedUser | null;
+  whitelistedUsers: AuthorizedUser[];
   incomers: Incomer[];
   feeders: Feeder[];
   logs: FeederLog[];
@@ -25,6 +28,8 @@ interface SubstationContextType {
   cloudSyncError: string | null;
   lastCloudSyncTime: string | null;
   firebaseConfig: FirebaseConfigType | null;
+  login: (id: string, pin: string) => boolean;
+  logout: () => void;
   setRole: (role: UserRole) => void;
   setLanguage: (lang: Language) => void;
   setOperatorName: (name: string) => void;
@@ -104,6 +109,18 @@ function normalizeIncomers(incomingList: Incomer[]): Incomer[] {
 export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [now, setNow] = useState<Date>(new Date());
   
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<AuthorizedUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('substation_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [whitelistedUsers] = useState<AuthorizedUser[]>(INITIAL_WHITELISTED_USERS);
+
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
@@ -113,10 +130,44 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [logs, setLogs] = useState<FeederLog[]>(INITIAL_LOGS);
   const [hourlyLogs, setHourlyLogs] = useState<Record<string, HourlySubstationLog>>({});
 
-  const [role, setRole] = useState<UserRole>('operator');
   const [language, setLanguage] = useState<Language>('hi');
-  const [operatorName, setOperatorName] = useState<string>('रमेश कुमार (SSO)');
   const [activeTab, setActiveTab] = useState<string>('overview');
+
+  // Role & Operator name derived from logged in user
+  const role: UserRole = useMemo(() => {
+    if (!currentUser) return 'officer';
+    return (currentUser.role === 'operator' || currentUser.role === 'admin') ? 'operator' : 'officer';
+  }, [currentUser]);
+
+  const operatorName: string = useMemo(() => {
+    if (!currentUser) return 'ऑपरेटर';
+    return currentUser.name;
+  }, [currentUser]);
+
+  const login = (id: string, pin: string): boolean => {
+    const user = whitelistedUsers.find(
+      u => u.id.toLowerCase() === id.trim().toLowerCase() && u.pin === pin.trim()
+    );
+    if (user) {
+      setCurrentUser(user);
+      try {
+        localStorage.setItem('substation_auth_user', JSON.stringify(user));
+      } catch (e) {
+        console.error('LocalStorage error:', e);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('substation_auth_user');
+    } catch (e) {
+      console.error('LocalStorage error:', e);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -299,6 +350,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const toggleFeeder = async (feederId: string, reason?: string, customOperator?: string) => {
+    if (role !== 'operator') return;
+
     const op = customOperator || operatorName;
     const currentTime = new Date().toISOString();
 
@@ -376,6 +429,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const tripFeeder = async (feederId: string, reason?: string) => {
+    if (role !== 'operator') return;
+
     const currentTime = new Date().toISOString();
 
     const nextFeeders: Feeder[] = effectiveFeeders.map(feeder => {
@@ -444,6 +499,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const toggleIncomer = async (incomerId: IncomerId) => {
+    if (role !== 'operator') return;
+
     const currentTime = new Date().toISOString();
     const nextIncomers: Incomer[] = incomers.map(inc => {
       if (inc.id !== incomerId) return inc;
@@ -468,6 +525,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const updateFeederRemark = async (feederId: string, remark: string) => {
+    if (role !== 'operator') return;
+
     const nextFeeders = effectiveFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
     setFeeders(nextFeeders);
 
@@ -481,6 +540,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const resetAllData = async () => {
+    if (role !== 'operator') return;
+
     setFeeders(INITIAL_FEEDERS);
     setIncomers(INITIAL_INCOMERS);
     setLogs(INITIAL_LOGS);
@@ -495,6 +556,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const clearLogs = async () => {
+    if (role !== 'operator') return;
+
     setLogs([]);
     await syncStateToCloud({
       feeders: effectiveFeeders,
@@ -504,6 +567,9 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updatedBy: 'Clear Logs'
     });
   };
+
+  const setRole = () => {};
+  const setOperatorName = () => {};
 
   const activeFeeders = effectiveFeeders.filter(f => f.status === 'ON').length;
   const inactiveFeeders = effectiveFeeders.length - activeFeeders;
@@ -538,6 +604,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   return (
     <SubstationContext.Provider
       value={{
+        currentUser,
+        whitelistedUsers,
         incomers,
         feeders: effectiveFeeders,
         logs,
@@ -553,6 +621,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cloudSyncError,
         lastCloudSyncTime,
         firebaseConfig: DEFAULT_FIREBASE_CONFIG,
+        login,
+        logout,
         setRole,
         setLanguage,
         setOperatorName,

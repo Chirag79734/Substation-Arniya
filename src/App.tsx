@@ -6,6 +6,7 @@ import { IncomerSection } from './components/IncomerSection';
 import { SingleLineDiagram } from './components/SingleLineDiagram';
 import { LogBook } from './components/LogBook';
 import { HourlyLoadSheet } from './components/HourlyLoadSheet';
+import { LoginPage } from './components/LoginPage';
 import { Zap, Radio } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -73,10 +74,20 @@ const DashboardContent: React.FC = () => {
   );
 };
 
+const MainAppRouter: React.FC = () => {
+  const { currentUser } = useSubstation();
+
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+
+  return <DashboardContent />;
+};
+
 export function App() {
   return (
     <SubstationProvider>
-      <DashboardContent />
+      <MainAppRouter />
     </SubstationProvider>
   );
 }

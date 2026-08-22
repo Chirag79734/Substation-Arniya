@@ -3,30 +3,27 @@ import { useSubstation } from '../context/SubstationContext';
 import { 
   Zap, 
   ShieldCheck, 
-  Eye, 
-  RotateCcw, 
   Clock, 
   Radio, 
-  Sliders, 
   FileText, 
   Activity, 
   Cloud,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 import { FirebaseModal } from './FirebaseModal';
 
 export const Header: React.FC = () => {
   const { 
+    currentUser,
+    logout,
     role, 
-    setRole, 
     language, 
     setLanguage, 
     operatorName, 
-    setOperatorName, 
     activeTab, 
     setActiveTab, 
     now, 
-    resetAllData,
     isFirebaseConnected,
     cloudSyncError,
     lastCloudSyncTime
@@ -122,45 +119,32 @@ export const Header: React.FC = () => {
                 {language === 'hi' ? 'English (EN)' : 'हिंदी (HI)'}
               </button>
 
-              <div className="bg-slate-950 p-1 rounded-xl border border-slate-800 flex items-center">
-                <button
-                  onClick={() => setRole('operator')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    role === 'operator'
-                      ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>{language === 'hi' ? 'ऑपरेटर (Edit Access)' : 'Operator (Edit)'}</span>
-                </button>
+              <div className="bg-slate-950/90 px-3 py-1 rounded-xl border border-slate-800 flex items-center space-x-3">
+                <div className="flex flex-col text-right">
+                  <span className="text-xs font-bold text-white flex items-center justify-end space-x-1">
+                    <span>{currentUser?.name || operatorName}</span>
+                    <span className={`w-2 h-2 rounded-full ${role === 'operator' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {currentUser?.designation || (role === 'operator' ? 'ऑपरेटर (Edit Access)' : 'अधिकारी (View Only)')}
+                  </span>
+                </div>
 
                 <button
-                  onClick={() => setRole('officer')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    role === 'officer'
-                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  onClick={() => {
+                    if (window.confirm(language === 'hi' ? 'क्या आप पोर्टल से लॉगआउट करना चाहते हैं?' : 'Are you sure you want to log out?')) {
+                      logout();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 transition flex items-center space-x-1 text-xs"
+                  title="Log Out"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>{language === 'hi' ? 'अधिकारी ओवरव्यू (Monitor)' : 'Officer View'}</span>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline font-semibold">{language === 'hi' ? 'लॉगआउट' : 'Logout'}</span>
                 </button>
               </div>
 
-              <button
-                onClick={() => {
-                  if (window.confirm(language === 'hi' ? 'क्या आप सभी फीडर और डेटा को रीसेट करना चाहते हैं?' : 'Do you want to reset all feeders and logs to default?')) {
-                    resetAllData();
-                  }
-                }}
-                className="p-2 text-slate-400 hover:text-rose-400 bg-slate-950/60 hover:bg-rose-950/40 rounded-lg border border-slate-800 hover:border-rose-800 transition"
-                title={language === 'hi' ? 'डेटा रीसेट करें' : 'Reset Data'}
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
             </div>
-
           </div>
 
           {cloudSyncError && (
@@ -189,13 +173,9 @@ export const Header: React.FC = () => {
                 <span className="font-semibold">
                   {language === 'hi' ? 'ऑपरेटर मोड एक्टिव (नियंत्रण सक्षम)' : 'Operator Mode Active (Control Enabled)'}:
                 </span>
-                <input
-                  type="text"
-                  value={operatorName}
-                  onChange={(e) => setOperatorName(e.target.value)}
-                  className="bg-slate-900 border border-amber-500/40 rounded px-2 py-0.5 text-xs text-amber-200 font-medium focus:outline-none focus:ring-1 focus:ring-amber-400"
-                  title="Current Operator Name"
-                />
+                <span className="bg-slate-900 border border-amber-500/40 rounded px-2 py-0.5 text-xs text-amber-200 font-bold">
+                  {operatorName}
+                </span>
               </div>
               <span className="text-slate-400 hidden sm:inline text-[11px]">
                 {language === 'hi' ? 'क्लिक करके किसी भी फीडर को तुरंत चालू या बंद करें' : 'Click on any feeder switch to instantly turn ON or OFF'}
