@@ -35,7 +35,7 @@ interface SubstationContextType {
   setOperatorName: (name: string) => void;
   setActiveTab: (tab: string) => void;
   updateFirebaseConfig: (config: FirebaseConfigType | null) => void;
-  toggleFeeder: (feederId: string, reason?: string, customOperator?: string) => void;
+  toggleFeeder: (feederId: string, reason?: string, customOperator?: string, operationTimeIso?: string) => void;
   tripFeeder: (feederId: string, reason?: string) => void;
   toggleIncomer: (incomerId: IncomerId) => void;
   updateFeederRemark: (feederId: string, remark: string) => void;
@@ -256,9 +256,23 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, [hourlyLogs, todayDateStr, currentHourNum]);
 
-  // Feeders with Current Hour R-Y-B readings applied
+  // Feeders with Realtime Switch Priority & Hourly Load Telemetry
   const effectiveFeeders: Feeder[] = useMemo(() => {
     return feeders.map(feeder => {
+      // 1. If feeder circuit breaker is switched OFF or TRIPPED, respect that strictly!
+      if (feeder.status === 'OFF' || feeder.status === 'TRIPPED') {
+        return {
+          ...feeder,
+          currentAmp: 0,
+          powerMw: 0,
+          rAmp: 0,
+          yAmp: 0,
+          bAmp: 0,
+          voltageKv: 0
+        };
+      }
+
+      // 2. If feeder is ON, apply active hourly reading if present
       if (activeHourlyLog && activeHourlyLog.readings && activeHourlyLog.readings[feeder.id]) {
         const reading = activeHourlyLog.readings[feeder.id];
         const r = typeof reading.rAmp === 'number' ? reading.rAmp : 0;
@@ -266,35 +280,33 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const b = typeof reading.bAmp === 'number' ? reading.bAmp : 0;
         const avg = typeof reading.avgAmp === 'number' ? reading.avgAmp : Math.round((r + y + b) / 3);
         const mw = typeof reading.powerMw === 'number' ? reading.powerMw : +(avg * 11 * 1.732 * 0.92 / 1000).toFixed(2);
-        const isReadingZero = r === 0 && y === 0 && b === 0;
 
-        const nextStatus: FeederStatus = isReadingZero 
-          ? (feeder.status === 'TRIPPED' ? 'TRIPPED' : 'OFF') 
-          : (feeder.status === 'TRIPPED' ? 'TRIPPED' : 'ON');
-        const updatedFeeder: Feeder = {
+        return {
           ...feeder,
-          status: nextStatus,
+          status: 'ON',
           currentAmp: avg,
           powerMw: mw,
           rAmp: r,
           yAmp: y,
           bAmp: b,
-          voltageKv: isReadingZero ? 0 : 11.0
+          voltageKv: 11.0
         };
-        return updatedFeeder;
       }
 
-      // Default fallback
-      const r = feeder.rAmp !== undefined ? feeder.rAmp : (feeder.status === 'ON' ? Math.round(feeder.currentAmp * 1.02) : 0);
-      const y = feeder.yAmp !== undefined ? feeder.yAmp : (feeder.status === 'ON' ? Math.round(feeder.currentAmp * 0.98) : 0);
-      const b = feeder.bAmp !== undefined ? feeder.bAmp : (feeder.status === 'ON' ? feeder.currentAmp : 0);
-      const defaultFeeder: Feeder = {
+      // 3. Fallback for ON feeder
+      const r = feeder.rAmp !== undefined ? feeder.rAmp : Math.round((feeder.currentAmp || 60) * 1.02);
+      const y = feeder.yAmp !== undefined ? feeder.yAmp : Math.round((feeder.currentAmp || 60) * 0.98);
+      const b = feeder.bAmp !== undefined ? feeder.bAmp : (feeder.currentAmp || 60);
+      return {
         ...feeder,
+        status: 'ON',
+        currentAmp: feeder.currentAmp || 60,
+        powerMw: feeder.powerMw || +(60 * 11 * 1.732 * 0.92 / 1000).toFixed(2),
         rAmp: r,
         yAmp: y,
-        bAmp: b
+        bAmp: b,
+        voltageKv: 11.0
       };
-      return defaultFeeder;
     });
   }, [feeders, activeHourlyLog]);
 
@@ -307,7 +319,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     setHourlyLogs(updatedHourly);
 
-    // Also update current live feeders with this reading
+    // Also update live feeders
     const nextFeeders: Feeder[] = feeders.map(f => {
       const reading = newLog.readings?.[f.id];
       if (reading) {
@@ -336,7 +348,6 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const logRef = ref(realtimeDb, `substation_arniya/hourly_logs/${newLog.id}`);
       await set(logRef, newLog);
 
-      // Sync state to cloud so all devices get updated
       await syncStateToCloud({
         feeders: nextFeeders,
         incomers,
@@ -349,13 +360,13 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const toggleFeeder = async (feederId: string, reason?: string, customOperator?: string) => {
+  const toggleFeeder = async (feederId: string, reason?: string, customOperator?: string, operationTimeIso?: string) => {
     if (role !== 'operator') return;
 
     const op = customOperator || operatorName;
-    const currentTime = new Date().toISOString();
+    const currentTime = operationTimeIso || new Date().toISOString();
 
-    const nextFeeders: Feeder[] = effectiveFeeders.map(feeder => {
+    const nextFeeders: Feeder[] = feeders.map(feeder => {
       if (feeder.id !== feederId) return feeder;
 
       const isCurrentlyOn = feeder.status === 'ON';
@@ -433,7 +444,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const currentTime = new Date().toISOString();
 
-    const nextFeeders: Feeder[] = effectiveFeeders.map(feeder => {
+    const nextFeeders: Feeder[] = feeders.map(feeder => {
       if (feeder.id !== feederId) return feeder;
 
       const previousStatus = feeder.status;
@@ -527,7 +538,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateFeederRemark = async (feederId: string, remark: string) => {
     if (role !== 'operator') return;
 
-    const nextFeeders = effectiveFeeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
+    const nextFeeders = feeders.map(f => f.id === feederId ? { ...f, remarks: remark } : f);
     setFeeders(nextFeeders);
 
     await syncStateToCloud({

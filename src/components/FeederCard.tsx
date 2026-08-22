@@ -37,8 +37,8 @@ export const FeederCard: React.FC<FeederCardProps> = ({ feeder }) => {
     setIsModalOpen(true);
   };
 
-  const handleConfirmToggle = (reason: string) => {
-    toggleFeeder(feeder.id, reason);
+  const handleConfirmToggle = (reason: string, operationTimeIso?: string) => {
+    toggleFeeder(feeder.id, reason, undefined, operationTimeIso);
     setIsModalOpen(false);
   };
 
