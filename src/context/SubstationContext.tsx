@@ -19,6 +19,7 @@ interface SubstationContextType {
   hourlyLogs: Record<string, HourlySubstationLog>;
   activeHourlyLogTimeLabel: string;
   isAdmin: boolean;
+  is33KvHealthy: boolean;
   role: UserRole;
   language: Language;
   operatorName: string;
@@ -39,6 +40,8 @@ interface SubstationContextType {
   toggleFeeder: (feederId: string, reason?: string, customOperator?: string, operationTimeIso?: string) => void;
   tripFeeder: (feederId: string, reason?: string) => void;
   toggleIncomer: (incomerId: IncomerId) => void;
+  trigger33KvSupplyFail: (reason?: string, operationTimeIso?: string) => Promise<void>;
+  restore33KvSupply: (reason?: string, operationTimeIso?: string) => Promise<void>;
   updateFeederRemark: (feederId: string, remark: string) => void;
   saveHourlyLog: (log: HourlySubstationLog) => Promise<void>;
   resetAllData: () => void;
@@ -145,6 +148,10 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!currentUser) return 'ऑपरेटर';
     return currentUser.name;
   }, [currentUser]);
+
+  const is33KvHealthy: boolean = useMemo(() => {
+    return incomers.some(inc => inc.status === 'ON');
+  }, [incomers]);
 
   const login = (id: string, pin: string): boolean => {
     const user = whitelistedUsers.find(
@@ -321,7 +328,6 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     setHourlyLogs(updatedHourly);
 
-    // Also update live feeders
     const nextFeeders: Feeder[] = feeders.map(f => {
       const reading = newLog.readings?.[f.id];
       if (reading) {
@@ -537,6 +543,135 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
+  // ⚠️ 33 KV SUPPLY FAILURE (TOTAL BLACKOUT - ALL FEEDERS TURN OFF INSTANTLY)
+  const trigger33KvSupplyFail = async (reason?: string, operationTimeIso?: string) => {
+    if (role !== 'operator') return;
+
+    const op = currentUser?.name || operatorName;
+    const currentTime = operationTimeIso || new Date().toISOString();
+
+    // 1. Both Incomers drop to 0 kV and OFF
+    const nextIncomers: Incomer[] = incomers.map(inc => ({
+      ...inc,
+      status: 'OFF',
+      voltageKv: 0,
+      currentAmp: 0,
+      lastStatusChange: currentTime
+    }));
+
+    // 2. ALL 8 FEEDERS INSTANTLY TURN OFF (accumulating uptime for any running ones)
+    const nextFeeders: Feeder[] = feeders.map(feeder => {
+      const isCurrentlyOn = feeder.status === 'ON';
+      const elapsedSec = Math.max(0, Math.floor((new Date(currentTime).getTime() - new Date(feeder.lastStatusChange).getTime()) / 1000));
+      
+      let newUptime = feeder.totalUptimeSecondsToday;
+      let newDowntime = feeder.totalDowntimeSecondsToday;
+
+      if (isCurrentlyOn) {
+        newUptime += elapsedSec;
+      } else {
+        newDowntime += elapsedSec;
+      }
+
+      return {
+        ...feeder,
+        status: 'OFF',
+        voltageKv: 0,
+        currentAmp: 0,
+        powerMw: 0,
+        rAmp: 0,
+        yAmp: 0,
+        bAmp: 0,
+        lastStatusChange: currentTime,
+        totalUptimeSecondsToday: newUptime,
+        totalDowntimeSecondsToday: newDowntime,
+        remarks: reason || '33 KV मेन ग्रिड सप्लाई फेल'
+      };
+    });
+
+    const failureLog: FeederLog = {
+      id: `log-33kv-${Date.now()}`,
+      feederId: 'all-feeders',
+      feederName: '33 KV Grid Supply (All Feeders)',
+      feederHindiName: '33 KV ग्रिड सप्लाई (समस्त फीडर)',
+      incomerId: 'inc-1',
+      incomerName: '33/11 KV Substation Arniya',
+      previousStatus: 'ON',
+      newStatus: 'OFF',
+      durationSecondsInPreviousState: 0,
+      timestamp: currentTime,
+      operatorName: op,
+      reason: reason || '33 KV मेन ग्रिड सप्लाई फेल - सभी 8 फीडर स्वतः बंद हुए'
+    };
+
+    const nextLogs = [failureLog, ...logs];
+
+    setIncomers(nextIncomers);
+    setFeeders(nextFeeders);
+    setLogs(nextLogs);
+
+    await syncStateToCloud({
+      feeders: nextFeeders,
+      incomers: nextIncomers,
+      logs: nextLogs,
+      updatedAt: currentTime,
+      updatedBy: `${op} (33 KV Fail)`
+    });
+  };
+
+  // ⚡ RESTORE 33 KV SUPPLY (INCOMERS TURN ON, BUT FEEDERS REMAIN OFF FOR SAFE MANUAL CHARGING)
+  const restore33KvSupply = async (reason?: string, operationTimeIso?: string) => {
+    if (role !== 'operator') return;
+
+    const op = currentUser?.name || operatorName;
+    const currentTime = operationTimeIso || new Date().toISOString();
+
+    // 1. Incomers restored to ON (33.2 kV and 33.1 kV)
+    const nextIncomers: Incomer[] = incomers.map(inc => ({
+      ...inc,
+      status: 'ON',
+      voltageKv: inc.id === 'inc-1' ? 33.2 : 33.1,
+      currentAmp: inc.id === 'inc-1' ? 340 : 275,
+      lastStatusChange: currentTime
+    }));
+
+    // 2. CRITICAL SAFETY: FEEDERS REMAIN OFF!
+    // They are NOT auto-turned on. Operator will manually switch each feeder ON.
+    const nextFeeders: Feeder[] = feeders.map(feeder => ({
+      ...feeder,
+      remarks: feeder.status === 'OFF' ? '33 KV सप्लाई बहाल - फीडर मैन्युअल चालू करने हेतु तैयार' : feeder.remarks
+    }));
+
+    const restoreLog: FeederLog = {
+      id: `log-33kv-res-${Date.now()}`,
+      feederId: 'all-feeders',
+      feederName: '33 KV Grid Supply (All Feeders)',
+      feederHindiName: '33 KV ग्रिड सप्लाई (समस्त फीडर)',
+      incomerId: 'inc-1',
+      incomerName: '33/11 KV Substation Arniya',
+      previousStatus: 'OFF',
+      newStatus: 'ON',
+      durationSecondsInPreviousState: 0,
+      timestamp: currentTime,
+      operatorName: op,
+      reason: reason || '33 KV ग्रिड सप्लाई बहाल / चार्ज - फीडर मैन्युअल चालू करने हेतु सुरक्षित'
+    };
+
+    const nextLogs = [restoreLog, ...logs];
+
+    setIncomers(nextIncomers);
+    setFeeders(nextFeeders);
+    setLogs(nextLogs);
+
+    await syncStateToCloud({
+      feeders: nextFeeders,
+      incomers: nextIncomers,
+      logs: nextLogs,
+      updatedAt: currentTime,
+      updatedBy: `${op} (33 KV Restored)`
+    });
+  };
+
   const updateFeederRemark = async (feederId: string, remark: string) => {
     if (role !== 'operator') return;
 
@@ -645,6 +780,7 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         hourlyLogs,
         activeHourlyLogTimeLabel,
         isAdmin: currentUser?.role === 'admin',
+        is33KvHealthy,
         role,
         language,
         operatorName,
@@ -665,6 +801,8 @@ export const SubstationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleFeeder,
         tripFeeder,
         toggleIncomer,
+        trigger33KvSupplyFail,
+        restore33KvSupply,
         updateFeederRemark,
         saveHourlyLog,
         resetAllData,

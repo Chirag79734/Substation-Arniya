@@ -7,6 +7,7 @@ import { SingleLineDiagram } from './components/SingleLineDiagram';
 import { LogBook } from './components/LogBook';
 import { HourlyLoadSheet } from './components/HourlyLoadSheet';
 import { LoginPage } from './components/LoginPage';
+import { Supply33KvBanner } from './components/Supply33KvBanner';
 import { Zap, Radio } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -20,6 +21,7 @@ const DashboardContent: React.FC = () => {
         {/* Main Dashboard Overview */}
         {activeTab === 'overview' && (
           <div>
+            <Supply33KvBanner />
             <OverviewCards />
             <div className="space-y-6">
               <IncomerSection incomerId="inc-1" />
