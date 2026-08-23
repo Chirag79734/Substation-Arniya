@@ -134,19 +134,21 @@ export const FeederCard: React.FC<FeederCardProps> = ({ feeder }) => {
             </div>
           </div>
 
-          <div className="mt-3 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-mono-scada">
-              <span className="text-emerald-400 flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>{language === 'hi' ? 'आज चला:' : 'Uptime:'} {formatDuration(totalUptimeSec, language)}</span>
+          <div className="mt-3 space-y-1.5 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
+              <span className="text-emerald-400 flex items-center space-x-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                <span>{language === 'hi' ? 'आज चला:' : 'Uptime:'}</span>
+                <strong className="font-mono-scada text-emerald-300">{formatDuration(totalUptimeSec, language)}</strong>
               </span>
-              <span className="text-rose-400 flex items-center space-x-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                <span>{language === 'hi' ? 'आज बंद:' : 'Downtime:'} {formatDuration(totalDowntimeSec, language)}</span>
+              <span className="text-rose-400 flex items-center space-x-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 flex-shrink-0" />
+                <span>{language === 'hi' ? 'आज बंद:' : 'Downtime:'}</span>
+                <strong className="font-mono-scada text-rose-300">{formatDuration(totalDowntimeSec, language)}</strong>
               </span>
             </div>
 
-            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
+            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex mt-1.5">
               <div 
                 className="bg-emerald-500 h-full transition-all duration-300"
                 style={{ width: `${uptimePercent}%` }}

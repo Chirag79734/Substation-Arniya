@@ -1,10 +1,12 @@
 import { Incomer, Feeder, FeederLog } from '../types/substation';
 
+const midnightMs = new Date().setHours(0, 0, 0, 0);
+
 export const INITIAL_INCOMERS: Incomer[] = [
   {
     id: 'inc-1',
     name: 'Incoming 1st (33kV Incomer-1)',
-    hindiName: 'इनकमिंग 1 (33kV इनकूमर-1)',
+    hindiName: 'इनकमिंग 1st (33kV इनकूमर-1)',
     status: 'ON',
     voltageKv: 33.2,
     currentAmp: 345,
@@ -12,7 +14,7 @@ export const INITIAL_INCOMERS: Incomer[] = [
     transformerMva: 10,
     oilTempC: 58.4,
     windingTempC: 64.2,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 6.5).toISOString(),
+    lastStatusChange: new Date(midnightMs).toISOString(),
   },
   {
     id: 'inc-2',
@@ -25,12 +27,12 @@ export const INITIAL_INCOMERS: Incomer[] = [
     transformerMva: 10,
     oilTempC: 54.1,
     windingTempC: 60.8,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 8.2).toISOString(),
+    lastStatusChange: new Date(midnightMs).toISOString(),
   }
 ];
 
 export const INITIAL_FEEDERS: Feeder[] = [
-  // Incoming 1st Feeders (5 Feeders)
+  // ==================== INCOMING 1ST (5 FEEDERS) ====================
   {
     id: 'f-raniyawali',
     name: 'Raniyawali Feeder',
@@ -42,9 +44,9 @@ export const INITIAL_FEEDERS: Feeder[] = [
     currentAmp: 82,
     powerMw: 1.45,
     powerFactor: 0.92,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 4.2).toISOString(),
-    totalUptimeSecondsToday: 28800,
-    totalDowntimeSecondsToday: 1800,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
     tripCountToday: 0,
     category: 'Rural',
     remarks: 'सामान्य आपूर्ति चालू'
@@ -60,17 +62,17 @@ export const INITIAL_FEEDERS: Feeder[] = [
     currentAmp: 64,
     powerMw: 1.12,
     powerFactor: 0.91,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 2.5).toISOString(),
-    totalUptimeSecondsToday: 25200,
-    totalDowntimeSecondsToday: 3600,
-    tripCountToday: 1,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
+    tripCountToday: 0,
     category: 'Rural',
     remarks: 'सुचारू रूप से चालू'
   },
   {
-    id: 'f-ghatal-2',
-    name: 'Ghatal 2nd',
-    hindiName: 'घटाल फीडर',
+    id: 'f-jahangeerpur',
+    name: 'Jahangeerpur Feeder',
+    hindiName: 'जहांगीरपुर फीडर',
     incomerId: 'inc-1',
     status: 'ON',
     nominalVoltageKv: 11.0,
@@ -78,35 +80,35 @@ export const INITIAL_FEEDERS: Feeder[] = [
     currentAmp: 95,
     powerMw: 1.72,
     powerFactor: 0.93,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 5.8).toISOString(),
-    totalUptimeSecondsToday: 30600,
-    totalDowntimeSecondsToday: 900,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
     tripCountToday: 0,
     category: 'Rural',
-    remarks: 'सामान्य'
+    remarks: 'सामान्य आपूर्ति'
   },
   {
-    id: 'f-muni',
-    name: 'Muni Feeder',
-    hindiName: 'मुनि फीडर',
+    id: 'f-thora',
+    name: 'Thora Feeder',
+    hindiName: 'थोरा फीडर',
     incomerId: 'inc-1',
-    status: 'OFF',
+    status: 'ON',
     nominalVoltageKv: 11.0,
-    voltageKv: 0,
-    currentAmp: 0,
-    powerMw: 0,
-    powerFactor: 0,
-    lastStatusChange: new Date(Date.now() - 60 * 1000 * 45).toISOString(),
-    totalUptimeSecondsToday: 21600,
-    totalDowntimeSecondsToday: 5400,
-    tripCountToday: 1,
+    voltageKv: 11.1,
+    currentAmp: 78,
+    powerMw: 1.38,
+    powerFactor: 0.92,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
+    tripCountToday: 0,
     category: 'Rural',
-    remarks: 'रोस्टरिंग कटौती'
+    remarks: 'सुचारू चालू'
   },
   {
-    id: 'f-ghatal-ptw',
-    name: 'Ghatal PTW',
-    hindiName: 'घटाल P.T.W',
+    id: 'f-arniya-rural',
+    name: 'Arniya Rural Feeder',
+    hindiName: 'अरनिया देहात फीडर',
     incomerId: 'inc-1',
     status: 'ON',
     nominalVoltageKv: 11.0,
@@ -114,55 +116,19 @@ export const INITIAL_FEEDERS: Feeder[] = [
     currentAmp: 110,
     powerMw: 1.95,
     powerFactor: 0.90,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 3.1).toISOString(),
-    totalUptimeSecondsToday: 27000,
-    totalDowntimeSecondsToday: 2400,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
     tripCountToday: 0,
     category: 'Agriculture/PTW',
-    remarks: 'कृषि पीटीडब्ल्यू स्लॉट'
+    remarks: 'देहात क्षेत्र सप्लाई'
   },
 
-  // Incoming 2nd Feeders (3 Feeders)
+  // ==================== INCOMING 2ND (3 FEEDERS) ====================
   {
-    id: 'f-surjawali',
-    name: 'Surjawali Feeder',
-    hindiName: 'सुरजावली फीडर',
-    incomerId: 'inc-2',
-    status: 'ON',
-    nominalVoltageKv: 11.0,
-    voltageKv: 11.2,
-    currentAmp: 88,
-    powerMw: 1.55,
-    powerFactor: 0.92,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 6.0).toISOString(),
-    totalUptimeSecondsToday: 31200,
-    totalDowntimeSecondsToday: 600,
-    tripCountToday: 0,
-    category: 'Rural',
-    remarks: 'सामान्य आपूर्ति'
-  },
-  {
-    id: 'f-dashera',
-    name: 'Dashera Feeder',
-    hindiName: 'दशेरा फीडर',
-    incomerId: 'inc-2',
-    status: 'OFF',
-    nominalVoltageKv: 11.0,
-    voltageKv: 0,
-    currentAmp: 0,
-    powerMw: 0,
-    powerFactor: 0,
-    lastStatusChange: new Date(Date.now() - 60 * 1000 * 20).toISOString(),
-    totalUptimeSecondsToday: 24000,
-    totalDowntimeSecondsToday: 4200,
-    tripCountToday: 1,
-    category: 'Rural',
-    remarks: 'लाइन पेट्रोलिंग / मेंटेनेंस'
-  },
-  {
-    id: 'f-arniya',
-    name: 'Arniya Feeder',
-    hindiName: 'अरनिया फीडर',
+    id: 'f-arniya-town',
+    name: 'Arniya Town Feeder',
+    hindiName: 'अरनिया टाउन फीडर',
     incomerId: 'inc-2',
     status: 'ON',
     nominalVoltageKv: 11.0,
@@ -170,56 +136,49 @@ export const INITIAL_FEEDERS: Feeder[] = [
     currentAmp: 104,
     powerMw: 1.88,
     powerFactor: 0.94,
-    lastStatusChange: new Date(Date.now() - 3600 * 1000 * 7.5).toISOString(),
-    totalUptimeSecondsToday: 32400,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
     totalDowntimeSecondsToday: 0,
     tripCountToday: 0,
     category: 'Town/Urban',
     remarks: 'कस्बा अरनिया सप्लाई'
+  },
+  {
+    id: 'f-dussehra',
+    name: 'Dussehra Feeder',
+    hindiName: 'दशहरा फीडर',
+    incomerId: 'inc-2',
+    status: 'ON',
+    nominalVoltageKv: 11.0,
+    voltageKv: 11.2,
+    currentAmp: 88,
+    powerMw: 1.55,
+    powerFactor: 0.92,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
+    tripCountToday: 0,
+    category: 'Rural',
+    remarks: 'सामान्य आपूर्ति'
+  },
+  {
+    id: 'f-munda-khera',
+    name: 'Munda Khera Feeder',
+    hindiName: 'मुंडा खेड़ा फीडर',
+    incomerId: 'inc-2',
+    status: 'ON',
+    nominalVoltageKv: 11.0,
+    voltageKv: 11.1,
+    currentAmp: 72,
+    powerMw: 1.28,
+    powerFactor: 0.91,
+    lastStatusChange: new Date(midnightMs).toISOString(),
+    totalUptimeSecondsToday: 0,
+    totalDowntimeSecondsToday: 0,
+    tripCountToday: 0,
+    category: 'Rural',
+    remarks: 'सामान्य आपूर्ति'
   }
 ];
 
-export const INITIAL_LOGS: FeederLog[] = [
-  {
-    id: 'log-1',
-    feederId: 'f-muni',
-    feederName: 'Muni Feeder',
-    feederHindiName: 'मुनि फीडर',
-    incomerId: 'inc-1',
-    incomerName: 'Incoming 1st',
-    previousStatus: 'ON',
-    newStatus: 'OFF',
-    durationSecondsInPreviousState: 21600,
-    timestamp: new Date(Date.now() - 60 * 1000 * 45).toISOString(),
-    operatorName: 'रमेश कुमार (SSO)',
-    reason: 'रोस्टरिंग शेड्यूल'
-  },
-  {
-    id: 'log-2',
-    feederId: 'f-dashera',
-    feederName: 'Dashera Feeder',
-    feederHindiName: 'दशेरा फीडर',
-    incomerId: 'inc-2',
-    incomerName: 'Incoming 2nd',
-    previousStatus: 'ON',
-    newStatus: 'OFF',
-    durationSecondsInPreviousState: 24000,
-    timestamp: new Date(Date.now() - 60 * 1000 * 20).toISOString(),
-    operatorName: 'रमेश कुमार (SSO)',
-    reason: 'लाइनमैन अनुरोध पर मेंटेनेंस'
-  },
-  {
-    id: 'log-3',
-    feederId: 'f-kaherola',
-    feederName: 'Kaherola Feeder',
-    feederHindiName: 'कहरोला फीडर',
-    incomerId: 'inc-1',
-    incomerName: 'Incoming 1st',
-    previousStatus: 'OFF',
-    newStatus: 'ON',
-    durationSecondsInPreviousState: 3600,
-    timestamp: new Date(Date.now() - 3600 * 1000 * 2.5).toISOString(),
-    operatorName: 'सुरेश शर्मा (SSO)',
-    reason: 'जम्पर बदलने के बाद चार्ज किया गया'
-  }
-];
+export const INITIAL_LOGS: FeederLog[] = [];
